@@ -1,6 +1,6 @@
 PY := /home/ai1/anaconda3/envs/p312/bin/python
 
-.PHONY: dev dev-api dev-web check migrate
+.PHONY: dev dev-api dev-web check migrate generate-client
 
 dev:
 	@echo "Run 'make dev-api' and 'make dev-web' in separate terminals."
@@ -18,3 +18,7 @@ check:
 
 migrate:
 	cd backend && $(PY) -m alembic upgrade head
+
+generate-client:
+	cd backend && $(PY) -m scripts.export_openapi
+	cd web && npx openapi-typescript-codegen --input ../backend/openapi.json --output src/lib/api --client fetch

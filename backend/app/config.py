@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     app_password: str = "changeme"
     session_secret: str = "changeme"
+    web_origin: str = "http://localhost:3000"
 
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'compass.db'}"
 
