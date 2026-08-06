@@ -24,6 +24,7 @@ import {
 } from "@/lib/hooks";
 import { ProjectStatus, TaskStatus, type ProjectRead, type TaskRead } from "@/lib/api-client";
 import { QuickAddBox } from "@/components/quick-add-box";
+import { BreakdownPanel } from "@/components/breakdown-panel";
 
 const STATUSES = [
   ProjectStatus.IDEA,
@@ -120,6 +121,11 @@ function ProjectDetailForm({ project }: { project: ProjectRead }) {
           Delete project
         </Button>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">AI breakdown</h2>
+        <BreakdownPanel projectId={project.id} />
+      </section>
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-muted-foreground">Tasks</h2>

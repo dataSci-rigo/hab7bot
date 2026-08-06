@@ -2,10 +2,15 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { BreakdownAcceptRequest } from '../models/BreakdownAcceptRequest';
+import type { BreakdownProposal } from '../models/BreakdownProposal';
 import type { ProjectCreate } from '../models/ProjectCreate';
 import type { ProjectRead } from '../models/ProjectRead';
 import type { ProjectStatus } from '../models/ProjectStatus';
+import type { ProjectSuggestion } from '../models/ProjectSuggestion';
 import type { ProjectUpdate } from '../models/ProjectUpdate';
+import type { SuggestionAcceptRequest } from '../models/SuggestionAcceptRequest';
+import type { TaskRead } from '../models/TaskRead';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -114,6 +119,80 @@ export class ProjectsService {
             path: {
                 'project_id': projectId,
             },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Suggest Projects
+     * @returns ProjectSuggestion Successful Response
+     * @throws ApiError
+     */
+    public static suggestProjectsApiV1ProjectsSuggestionsPost(): CancelablePromise<Array<ProjectSuggestion>> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/projects/suggestions',
+        });
+    }
+    /**
+     * Accept Suggestion
+     * @param requestBody
+     * @returns ProjectRead Successful Response
+     * @throws ApiError
+     */
+    public static acceptSuggestionApiV1ProjectsSuggestionsAcceptPost(
+        requestBody: SuggestionAcceptRequest,
+    ): CancelablePromise<ProjectRead> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/projects/suggestions/accept',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Breakdown Project
+     * @param projectId
+     * @returns BreakdownProposal Successful Response
+     * @throws ApiError
+     */
+    public static breakdownProjectApiV1ProjectsProjectIdBreakdownPost(
+        projectId: string,
+    ): CancelablePromise<BreakdownProposal> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/projects/{project_id}/breakdown',
+            path: {
+                'project_id': projectId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Accept Breakdown
+     * @param projectId
+     * @param requestBody
+     * @returns TaskRead Successful Response
+     * @throws ApiError
+     */
+    public static acceptBreakdownApiV1ProjectsProjectIdBreakdownAcceptPost(
+        projectId: string,
+        requestBody: BreakdownAcceptRequest,
+    ): CancelablePromise<Array<TaskRead>> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/projects/{project_id}/breakdown/accept',
+            path: {
+                'project_id': projectId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
             errors: {
                 422: `Validation Error`,
             },

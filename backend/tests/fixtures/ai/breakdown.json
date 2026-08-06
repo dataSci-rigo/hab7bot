@@ -1,0 +1,198 @@
+{
+  "milestones": [
+    {
+      "title": "1. Plan & Prepare",
+      "tasks": [
+        {
+          "title": "Audit current SQLite schema and document all tables, indexes, and constraints",
+          "quadrant": "Q2",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Choose Postgres hosting provider (e.g. Supabase, Railway, Neon, self-hosted)",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Define migration success criteria (zero data loss, all tests green, multi-device smoke test)",
+          "quadrant": "Q2",
+          "estimate_minutes": 30,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Identify SQLite-specific queries or features that need to be rewritten for Postgres",
+          "quadrant": "Q2",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 0
+        }
+      ]
+    },
+    {
+      "title": "2. Set Up Postgres Environment",
+      "tasks": [
+        {
+          "title": "Provision dev/staging Postgres instance",
+          "quadrant": "Q2",
+          "estimate_minutes": 30,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Add Postgres connection string to environment config / secrets manager",
+          "quadrant": "Q2",
+          "estimate_minutes": 20,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Update ORM/query layer to support Postgres dialect (e.g. swap driver, update config)",
+          "quadrant": "Q2",
+          "estimate_minutes": 90,
+          "suggested_week_offset": 0
+        },
+        {
+          "title": "Provision production Postgres instance and lock down access controls",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 1
+        }
+      ]
+    },
+    {
+      "title": "3. Schema Migration",
+      "tasks": [
+        {
+          "title": "Write Postgres-compatible schema migration scripts (from SQLite schema audit)",
+          "quadrant": "Q2",
+          "estimate_minutes": 120,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Run migrations against dev Postgres instance and verify schema",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Add and validate indexes for common query patterns",
+          "quadrant": "Q2",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Set up a migration version control strategy (e.g. Flyway, Liquibase, or custom)",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 1
+        }
+      ]
+    },
+    {
+      "title": "4. Data Migration",
+      "tasks": [
+        {
+          "title": "Write a one-time data migration script to export SQLite data and import into Postgres",
+          "quadrant": "Q2",
+          "estimate_minutes": 120,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Validate row counts and spot-check data integrity after migration",
+          "quadrant": "Q2",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Do a dry-run data migration on staging environment",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 2
+        }
+      ]
+    },
+    {
+      "title": "5. Application Layer Updates",
+      "tasks": [
+        {
+          "title": "Rewrite any SQLite-specific raw queries for Postgres compatibility",
+          "quadrant": "Q2",
+          "estimate_minutes": 120,
+          "suggested_week_offset": 1
+        },
+        {
+          "title": "Update connection pooling settings appropriate for Postgres",
+          "quadrant": "Q2",
+          "estimate_minutes": 30,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Update error handling for Postgres-specific error codes",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Run full test suite against Postgres dev instance and fix failures",
+          "quadrant": "Q1",
+          "estimate_minutes": 120,
+          "suggested_week_offset": 2
+        }
+      ]
+    },
+    {
+      "title": "6. Cutover & Launch",
+      "tasks": [
+        {
+          "title": "Write a rollback plan in case production cutover fails",
+          "quadrant": "Q2",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Run final data migration on production instance during low-traffic window",
+          "quadrant": "Q1",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Flip production environment variable to point to Postgres and deploy",
+          "quadrant": "Q1",
+          "estimate_minutes": 20,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Smoke test multi-device use case end-to-end in production",
+          "quadrant": "Q1",
+          "estimate_minutes": 45,
+          "suggested_week_offset": 2
+        },
+        {
+          "title": "Monitor error rates, query latency, and connection pool health post-cutover",
+          "quadrant": "Q2",
+          "estimate_minutes": 60,
+          "suggested_week_offset": 3
+        },
+        {
+          "title": "Decommission SQLite file and remove legacy SQLite driver/dependencies",
+          "quadrant": "Q2",
+          "estimate_minutes": 30,
+          "suggested_week_offset": 3
+        }
+      ]
+    }
+  ],
+  "assumptions": [
+    "The app currently uses an ORM or query builder (not just raw SQL), so dialect-switching is feasible",
+    "A staging/dev environment exists or can be stood up quickly",
+    "Data volumes are small enough that a one-time migration script (rather than a live dual-write strategy) is sufficient",
+    "Multi-device support is the primary driver, so shared network-accessible Postgres is the right end state",
+    "There are existing tests that can be run against a different DB backend"
+  ],
+  "questions": [
+    "Are you using an ORM (e.g. Prisma, SQLAlchemy, Drizzle) or raw SQL? This affects how much query rewriting is needed.",
+    "Do you have an existing test suite with meaningful coverage?",
+    "What is the approximate data size in SQLite today \u2014 bytes, rows, tables?",
+    "Do you have a preferred Postgres hosting provider, or is that still open?",
+    "Is there a specific deadline tied to the Compass v1 ship date that constrains this migration timeline?"
+  ]
+}

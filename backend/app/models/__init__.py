@@ -1,3 +1,4 @@
+from app.models.conversation import ConversationMessage, ConversationSummary
 from app.models.goal import Goal
 from app.models.mission import MissionStatement
 from app.models.project import Project
@@ -9,6 +10,8 @@ from app.models.weekly_review import WeeklyReview
 
 __all__ = [
     "AppSettings",
+    "ConversationMessage",
+    "ConversationSummary",
     "Goal",
     "MissionStatement",
     "Project",

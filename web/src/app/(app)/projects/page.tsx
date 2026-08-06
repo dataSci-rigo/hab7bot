@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { SuggestionsPanel } from "@/components/suggestions-panel";
 import { useCreateProject, useGoals, useProjects, useRoles } from "@/lib/hooks";
 
 export default function ProjectsPage() {
@@ -97,6 +99,13 @@ export default function ProjectsPage() {
           ))}
         </div>
       )}
+
+      <Separator />
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground">AI project suggestions</h2>
+        <SuggestionsPanel />
+      </section>
     </div>
   );
 }

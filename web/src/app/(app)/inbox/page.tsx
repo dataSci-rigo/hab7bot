@@ -15,18 +15,34 @@ import {
 import { QuickAddBox } from "@/components/quick-add-box";
 import {
   useDeleteTask,
+  useInboxAiTriage,
   useProjects,
   useRoles,
   useTasks,
   useUpdateTask,
 } from "@/lib/hooks";
-import { Quadrant, TaskStatus, type TaskRead, type TaskUpdate } from "@/lib/api-client";
+import {
+  ApiError,
+  Quadrant,
+  TaskStatus,
+  type InboxTriageSuggestion,
+  type TaskRead,
+  type TaskUpdate,
+} from "@/lib/api-client";
 
 const QUADRANTS = [Quadrant.Q1, Quadrant.Q2, Quadrant.Q3, Quadrant.Q4];
 
 type BulkField = "role_id" | "project_id" | "quadrant" | "scheduled_week";
 
-function InboxRow({ task }: { task: TaskRead }) {
+function InboxRow({
+  task,
+  suggestion,
+  onDismissSuggestion,
+}: {
+  task: TaskRead;
+  suggestion?: InboxTriageSuggestion;
+  onDismissSuggestion: (taskId: string) => void;
+}) {
   const { data: roles } = useRoles();
   const { data: projects } = useProjects();
   const updateTask = useUpdateTask();
@@ -45,74 +61,102 @@ function InboxRow({ task }: { task: TaskRead }) {
     patch(shouldAdvance ? { ...data, status: TaskStatus.PLANNED } : data);
   }
 
+  function applySuggestion() {
+    if (!suggestion) return;
+    patchAndTriage({
+      role_id: suggestion.role_id ?? undefined,
+      quadrant: suggestion.quadrant,
+      project_id: suggestion.project_id,
+    });
+    onDismissSuggestion(task.id);
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-      <span className="min-w-40 flex-1 truncate">{task.title}</span>
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
+        <span className="min-w-40 flex-1 truncate">{task.title}</span>
 
-      <Select value={task.role_id} onValueChange={(v) => patch({ role_id: v })}>
-        <SelectTrigger className="w-36">
-          <SelectValue placeholder="Role" />
-        </SelectTrigger>
-        <SelectContent>
-          {roles?.map((r) => (
-            <SelectItem key={r.id} value={r.id}>
-              {r.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select value={task.role_id} onValueChange={(v) => patch({ role_id: v })}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Role" />
+          </SelectTrigger>
+          <SelectContent>
+            {roles?.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Select
-        value={task.project_id ?? "none"}
-        onValueChange={(v) => patchAndTriage({ project_id: v === "none" ? null : v })}
-      >
-        <SelectTrigger className="w-36">
-          <SelectValue placeholder="Project" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">No project</SelectItem>
-          {projects?.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.title}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select
+          value={task.project_id ?? "none"}
+          onValueChange={(v) => patchAndTriage({ project_id: v === "none" ? null : v })}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No project</SelectItem>
+            {projects?.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Select value={task.quadrant} onValueChange={(v) => patch({ quadrant: v as Quadrant })}>
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {QUADRANTS.map((q) => (
-            <SelectItem key={q} value={q}>
-              {q}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <Select value={task.quadrant} onValueChange={(v) => patch({ quadrant: v as Quadrant })}>
+          <SelectTrigger className="w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {QUADRANTS.map((q) => (
+              <SelectItem key={q} value={q}>
+                {q}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Input
-        value={week}
-        onChange={(e) => setWeek(e.target.value)}
-        onBlur={() => patchAndTriage({ scheduled_week: week || null })}
-        placeholder="YYYY-Www"
-        className="w-28"
-      />
+        <Input
+          value={week}
+          onChange={(e) => setWeek(e.target.value)}
+          onBlur={() => patchAndTriage({ scheduled_week: week || null })}
+          placeholder="YYYY-Www"
+          className="w-28"
+        />
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={async () => {
-          try {
-            await deleteTask.mutateAsync(task.id);
-          } catch {
-            toast.error("Couldn't delete task");
-          }
-        }}
-      >
-        Delete
-      </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={async () => {
+            try {
+              await deleteTask.mutateAsync(task.id);
+            } catch {
+              toast.error("Couldn't delete task");
+            }
+          }}
+        >
+          Delete
+        </Button>
+      </div>
+      {suggestion && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed bg-accent/40 p-2 text-xs">
+          <span className="font-medium">AI suggests:</span>
+          <span>
+            {suggestion.role_name ?? "—"} · {suggestion.quadrant}
+            {suggestion.is_big_rock_candidate ? " · big rock" : ""}
+            {suggestion.project_title ? ` · ${suggestion.project_title}` : ""}
+          </span>
+          <Button size="sm" variant="outline" onClick={applySuggestion}>
+            Apply
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onDismissSuggestion(task.id)}>
+            Dismiss
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,10 +167,34 @@ export default function InboxPage() {
   const { data: projects } = useProjects();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const aiTriage = useInboxAiTriage();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkField, setBulkField] = useState<BulkField>("role_id");
   const [bulkValue, setBulkValue] = useState("");
+  const [suggestions, setSuggestions] = useState<Map<string, InboxTriageSuggestion>>(new Map());
+
+  function dismissSuggestion(taskId: string) {
+    setSuggestions((prev) => {
+      const next = new Map(prev);
+      next.delete(taskId);
+      return next;
+    });
+  }
+
+  async function handleAiTriage() {
+    try {
+      const result = await aiTriage.mutateAsync();
+      setSuggestions(new Map(result.map((s) => [s.task_id, s])));
+      if (result.length === 0) toast.info("Nothing to triage.");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError && err.status === 503
+          ? "AI is currently unavailable. Try again."
+          : "AI triage failed.",
+      );
+    }
+  }
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -172,7 +240,12 @@ export default function InboxPage() {
     <div className="space-y-4">
       <h1 className="text-lg font-semibold">Inbox</h1>
 
-      <QuickAddBox placeholder="Capture something…" />
+      <div className="flex items-center gap-2">
+        <QuickAddBox placeholder="Capture something…" allowAiCapture />
+        <Button variant="outline" size="sm" onClick={handleAiTriage} disabled={aiTriage.isPending}>
+          {aiTriage.isPending ? "Triaging…" : "AI triage"}
+        </Button>
+      </div>
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border bg-accent/50 p-2 text-sm">
@@ -262,7 +335,11 @@ export default function InboxPage() {
                 className="mt-3"
               />
               <div className="flex-1">
-                <InboxRow task={task} />
+                <InboxRow
+                  task={task}
+                  suggestion={suggestions.get(task.id)}
+                  onDismissSuggestion={dismissSuggestion}
+                />
               </div>
             </div>
           ))}

@@ -1,15 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CaptureService,
   GoalsService,
+  InboxService,
   MissionService,
   ProjectsService,
   RolesService,
   SettingsService,
   TasksService,
   WeeksService,
+  type BreakdownTask,
   type GoalCreate,
   type GoalUpdate,
   type ProjectCreate,
+  type ProjectSuggestion,
   type ProjectUpdate,
   type RoleCreate,
   type RoleUpdate,
@@ -270,5 +274,63 @@ export function useUpdateSettings() {
     mutationFn: (weekStartDay: string) =>
       SettingsService.updateSettingsApiV1SettingsPut({ week_start_day: weekStartDay }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+// ── AI: capture ──────────────────────────────────────────────────────────
+
+export function useCaptureTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (text: string) => CaptureService.captureApiV1CapturePost({ text }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["week-plan"] });
+    },
+  });
+}
+
+// ── AI: project breakdown ───────────────────────────────────────────────────
+
+export function useBreakdownProject() {
+  return useMutation({
+    mutationFn: (projectId: string) =>
+      ProjectsService.breakdownProjectApiV1ProjectsProjectIdBreakdownPost(projectId),
+  });
+}
+
+export function useAcceptBreakdown() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, selected }: { projectId: string; selected: BreakdownTask[] }) =>
+      ProjectsService.acceptBreakdownApiV1ProjectsProjectIdBreakdownAcceptPost(projectId, {
+        selected,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+}
+
+// ── AI: project suggestions ─────────────────────────────────────────────────
+
+export function useSuggestProjects() {
+  return useMutation({
+    mutationFn: () => ProjectsService.suggestProjectsApiV1ProjectsSuggestionsPost(),
+  });
+}
+
+export function useAcceptSuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (suggestion: ProjectSuggestion) =>
+      ProjectsService.acceptSuggestionApiV1ProjectsSuggestionsAcceptPost({ suggestion }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+// ── AI: inbox triage ─────────────────────────────────────────────────────────
+
+export function useInboxAiTriage() {
+  return useMutation({
+    mutationFn: () => InboxService.aiTriageApiV1InboxAiTriagePost(),
   });
 }

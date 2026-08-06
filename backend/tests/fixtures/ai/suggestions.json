@@ -1,0 +1,63 @@
+{
+  "suggestions": [
+    {
+      "title": "Ship Compass v1",
+      "role_name": "Engineer",
+      "goal_title": "Ship Compass v1",
+      "rationale": "This is your primary engineering goal. A dedicated project ensures the v1 launch has clear, structured momentum \u2014 turning the goal into actionable, shippable work.",
+      "first_three_tasks": [
+        "Define the v1 scope and write a one-page product spec",
+        "Set up the repository, CI pipeline, and project board",
+        "Build and test the core feature that defines Compass's value"
+      ],
+      "quadrant_profile": "Urgent & Important"
+    },
+    {
+      "title": "Half Marathon Training Plan",
+      "role_name": "Health & Fitness",
+      "goal_title": "Run a half marathon",
+      "rationale": "A structured training project bridges the gap between the goal of running a half marathon and daily action. Picking a race date and following a plan dramatically increases the odds of finishing.",
+      "first_three_tasks": [
+        "Choose a target race and register to create a hard deadline",
+        "Select a 12\u201316 week beginner or intermediate training plan",
+        "Schedule all weekly runs on the calendar and set recurring reminders"
+      ],
+      "quadrant_profile": "Not Urgent & Important"
+    },
+    {
+      "title": "Compass Developer Documentation",
+      "role_name": "Engineer",
+      "goal_title": "Ship Compass v1",
+      "rationale": "Things that outlast you need documentation that outlasts you too. Writing clear docs and a README ensures Compass can be understood, used, and extended by others long after v1 ships.",
+      "first_three_tasks": [
+        "Write a compelling README with the project's purpose, setup steps, and usage examples",
+        "Document the core API or architecture decisions in a /docs folder",
+        "Publish the docs site (e.g., GitHub Pages or Mintlify)"
+      ],
+      "quadrant_profile": "Not Urgent & Important"
+    },
+    {
+      "title": "Base Fitness & Strength Habit",
+      "role_name": "Health & Fitness",
+      "rationale": "Running a half marathon requires more than mileage \u2014 strength and mobility work prevents injury and builds the durable body needed to support a long engineering career and a life of doing hard things.",
+      "first_three_tasks": [
+        "Establish a 2x/week strength routine focused on legs, core, and hips",
+        "Add a 10-minute daily mobility or stretching session post-run",
+        "Track weekly energy and recovery levels to tune the routine"
+      ],
+      "quadrant_profile": "Not Urgent & Important"
+    },
+    {
+      "title": "Compass Public Launch & Announcement",
+      "role_name": "Engineer",
+      "goal_title": "Ship Compass v1",
+      "rationale": "Building something that outlasts you means people need to find it. A launch project ensures Compass gets in front of real users at v1 \u2014 creating a feedback loop that fuels longevity and impact.",
+      "first_three_tasks": [
+        "Write a launch post explaining the problem Compass solves and the story behind it",
+        "Identify 3 communities or channels where the target audience lives (e.g., HN, Reddit, X)",
+        "Prepare a short demo video or screenshots for the announcement"
+      ],
+      "quadrant_profile": "Urgent & Important"
+    }
+  ]
+}
