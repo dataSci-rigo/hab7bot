@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,7 +12,12 @@ class ConversationMessage(UUIDPKMixin, Base):
 
     role: Mapped[str] = mapped_column(String(20))  # "user" | "assistant"
     content: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Python-side default (not server_default): a user/assistant pair is often
+    # appended within the same second, and SQLite's CURRENT_TIMESTAMP only has
+    # second resolution — that made history ordering nondeterministic on ties.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
 
 class ConversationSummary(UUIDPKMixin, Base):

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -19,8 +20,15 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_model_fast: str = "claude-haiku-4-5"
 
-    telegram_bot_token: str = ""
-    telegram_allowed_user_id: int = 0
+    # Named with a HAB7BOT_ prefix (not the plain TELEGRAM_* you'd expect) —
+    # this .env lives inside a shared env_sync.py master alongside several
+    # other Telegram bots' credentials; a generic name risks visual mix-ups
+    # even though env_sync's per-project sections keep the values themselves
+    # from actually colliding.
+    telegram_bot_token: str = Field(default="", validation_alias="HAB7BOT_TELEGRAM_TOKEN")
+    telegram_allowed_user_id: int = Field(
+        default=0, validation_alias="HAB7BOT_ALLOWED_USER_ID"
+    )
 
     week_start_day: str = "monday"
 

@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import anthropic
+from anthropic.types import Message
 
 from app.config import settings
 
@@ -69,4 +70,43 @@ def call_tool(
         logger.warning("AI response for tool %s had no matching tool_use block", tool_name)
         return None
 
+    return None
+
+
+def create_message(
+    *,
+    system: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+    model: str,
+    max_tokens: int = 2048,
+    max_retries: int = 1,
+    timeout: float = 60.0,
+) -> Message | None:
+    """Raw multi-turn call with tool_choice="auto" — used by the conversational
+    agent loop (app/ai/agent.py), which needs the full Message (text blocks,
+    tool_use blocks, stop_reason) to drive multi-step tool use.
+
+    Returns None on any failure so the caller can degrade gracefully.
+    """
+    if not settings.anthropic_api_key:
+        logger.warning("ANTHROPIC_API_KEY not set; skipping agent call")
+        return None
+
+    client = _get_client()
+    attempts = max_retries + 1
+    for attempt in range(1, attempts + 1):
+        try:
+            return client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools or [],
+                timeout=timeout,
+            )
+        except Exception:
+            logger.warning(
+                "Agent AI call failed (attempt %d/%d)", attempt, attempts, exc_info=True
+            )
     return None

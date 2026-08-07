@@ -40,6 +40,16 @@ def list_tasks(
     return list(db.scalars(stmt.order_by(Task.created_at)))
 
 
+def search_tasks(db: Session, query: str, limit: int = 20) -> list[Task]:
+    stmt = (
+        select(Task)
+        .where(Task.title.ilike(f"%{query}%"))
+        .order_by(Task.created_at.desc())
+        .limit(limit)
+    )
+    return list(db.scalars(stmt))
+
+
 def update_task(db: Session, task_id: uuid.UUID, data: TaskUpdate) -> Task | None:
     task = get_task(db, task_id)
     if task is None:
