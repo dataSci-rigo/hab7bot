@@ -115,6 +115,19 @@ AGENT_TOOLS = [
         },
     },
     {
+        "name": "list_projects",
+        "description": "List projects, optionally filtered — use this to find a project's "
+        "id (e.g. before calling breakdown_project/update_project/abandon_project) or to "
+        "check whether a project with a given name already exists before creating one.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "role_name": {"type": "string"},
+                "status": {"type": "string", "enum": [*PROJECT_STATUS_ENUM, "abandoned"]},
+            },
+        },
+    },
+    {
         "name": "create_project",
         "description": "Create a new project.",
         "input_schema": {

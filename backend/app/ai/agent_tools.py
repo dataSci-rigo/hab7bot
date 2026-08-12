@@ -225,6 +225,17 @@ def _set_big_rocks(db: Session, args: dict) -> dict:
     return {"updated": [_task_brief(t, roles_by_id, projects_by_id) for t in updated]}
 
 
+def _list_projects(db: Session, args: dict) -> dict:
+    role_id = None
+    if args.get("role_name"):
+        role = _require_role(db, args["role_name"])
+        role_id = role.id
+    status = ProjectStatus(args["status"]) if args.get("status") else None
+    projects = projects_service.list_projects(db, role_id=role_id, status=status)
+    _, roles_by_id = _role_lookup(db)
+    return {"projects": [_project_brief(p, roles_by_id) for p in projects]}
+
+
 def _create_project(db: Session, args: dict) -> dict:
     role = _require_role(db, args["role_name"])
     goal_id = None
@@ -313,6 +324,7 @@ _DISPATCH = {
     "drop_task": _drop_task,
     "get_week_plan": _get_week_plan,
     "set_big_rocks": _set_big_rocks,
+    "list_projects": _list_projects,
     "create_project": _create_project,
     "update_project": _update_project,
     "abandon_project": _abandon_project,

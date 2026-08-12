@@ -1,15 +1,18 @@
 PY := /home/ai1/anaconda3/envs/p312/bin/python
 
-.PHONY: dev dev-api dev-web check migrate generate-client
+.PHONY: dev dev-api dev-web dev-bot check migrate generate-client
 
 dev:
-	@echo "Run 'make dev-api' and 'make dev-web' in separate terminals."
+	@echo "Run 'make dev-api', 'make dev-web', and 'make dev-bot' in separate terminals."
 
 dev-api:
 	cd backend && $(PY) -m uvicorn app.main:app --reload
 
 dev-web:
 	cd web && npm run dev
+
+dev-bot:
+	cd backend && $(PY) -m app.bot.main
 
 check:
 	cd backend && $(PY) -m ruff check .
