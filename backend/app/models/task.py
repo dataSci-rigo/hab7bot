@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String
@@ -41,6 +41,15 @@ class Task(UUIDPKMixin, CreatedAtMixin, Base):
         Enum(TaskOrigin, native_enum=False), default=TaskOrigin.user
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    # Python-side default/onupdate (not server_default/server_onupdate) — see
+    # the ConversationMessage.created_at fix in Phase 4 for why: SQLite's
+    # CURRENT_TIMESTAMP only has 1-second resolution, and Google sync's
+    # last-write-wins conflict resolution needs a reliable ordering.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(UTC).replace(tzinfo=None),
+    )
 
     role: Mapped["Role"] = relationship(back_populates="tasks")
     project: Mapped["Project | None"] = relationship(back_populates="tasks")

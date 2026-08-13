@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -15,6 +16,9 @@ class WeekPlan(UUIDPKMixin, CreatedAtMixin, Base):
     __tablename__ = "week_plans"
 
     iso_week: Mapped[str] = mapped_column(String(8), unique=True)  # "YYYY-Www"
+    planning_prompt_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime, default=None
+    )
 
     role_intentions: Mapped[list["RoleWeekIntention"]] = relationship(
         back_populates="week_plan", cascade="all, delete-orphan"

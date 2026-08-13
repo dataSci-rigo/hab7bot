@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
 
 from app.models.enums import TaskStatus
+from app.schemas.project import ProjectCreate
 from app.schemas.role import RoleCreate
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.services import projects as projects_service
 from app.services import roles as roles_service
 from app.services import tasks as tasks_service
 
@@ -59,3 +61,49 @@ def test_update_task_partial(db_session: Session) -> None:
     assert updated is not None
     assert updated.is_big_rock is True
     assert updated.title == "Original"
+
+
+def test_update_task_assigning_week_leaves_inbox(db_session: Session) -> None:
+    role = _make_role(db_session)
+    task = tasks_service.create_task(db_session, TaskCreate(title="A", role_id=role.id))
+    assert task.status == TaskStatus.inbox
+
+    updated = tasks_service.update_task(
+        db_session, task.id, TaskUpdate(scheduled_week="2026-W34")
+    )
+    assert updated.status == TaskStatus.planned
+
+
+def test_update_task_assigning_project_leaves_inbox(db_session: Session) -> None:
+    role = _make_role(db_session)
+    task = tasks_service.create_task(db_session, TaskCreate(title="A", role_id=role.id))
+
+    project = projects_service.create_project(
+        db_session, ProjectCreate(title="P", role_id=role.id)
+    )
+    updated = tasks_service.update_task(
+        db_session, task.id, TaskUpdate(project_id=project.id)
+    )
+    assert updated.status == TaskStatus.planned
+
+
+def test_update_task_explicit_status_not_overridden(db_session: Session) -> None:
+    role = _make_role(db_session)
+    task = tasks_service.create_task(db_session, TaskCreate(title="A", role_id=role.id))
+    updated = tasks_service.update_task(
+        db_session,
+        task.id,
+        TaskUpdate(scheduled_week="2026-W34", status=TaskStatus.dropped),
+    )
+    assert updated.status == TaskStatus.dropped
+
+
+def test_update_task_does_not_reopen_non_inbox_tasks(db_session: Session) -> None:
+    role = _make_role(db_session)
+    task = tasks_service.create_task(db_session, TaskCreate(title="A", role_id=role.id))
+    tasks_service.complete_task(db_session, task.id)
+
+    updated = tasks_service.update_task(
+        db_session, task.id, TaskUpdate(scheduled_week="2026-W34")
+    )
+    assert updated.status == TaskStatus.done

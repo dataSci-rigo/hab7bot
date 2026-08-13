@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ def list_tasks(
     project_id: uuid.UUID | None = None,
     status: TaskStatus | None = None,
     scheduled_week: str | None = None,
+    scheduled_day: date | None = None,
 ) -> list[Task]:
     stmt = select(Task)
     if role_id is not None:
@@ -37,6 +38,8 @@ def list_tasks(
         stmt = stmt.where(Task.status == status)
     if scheduled_week is not None:
         stmt = stmt.where(Task.scheduled_week == scheduled_week)
+    if scheduled_day is not None:
+        stmt = stmt.where(Task.scheduled_day == scheduled_day)
     return list(db.scalars(stmt.order_by(Task.created_at)))
 
 
@@ -54,7 +57,17 @@ def update_task(db: Session, task_id: uuid.UUID, data: TaskUpdate) -> Task | Non
     task = get_task(db, task_id)
     if task is None:
         return None
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+
+    # Assigning a project or week is what "triaging out of the inbox" means
+    # per SPEC's Inbox model — advance status so the task leaves the inbox
+    # view, regardless of which surface (web, bot) made the change. Skipped
+    # if the caller already set status explicitly in this same update.
+    leaves_inbox = updates.get("project_id") or updates.get("scheduled_week")
+    if task.status == TaskStatus.inbox and leaves_inbox and "status" not in updates:
+        updates["status"] = TaskStatus.planned
+
+    for field, value in updates.items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)

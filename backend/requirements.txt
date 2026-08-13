@@ -9,6 +9,10 @@ apscheduler==3.11.1
 anthropic==0.50.0
 httpx==0.28.1
 python-dotenv==1.2.1
+google-auth==2.56.2
+google-auth-oauthlib==1.4.0
+google-auth-httplib2==0.4.0
+google-api-python-client==2.198.0
 
 # dev / test
 ruff==0.15.1

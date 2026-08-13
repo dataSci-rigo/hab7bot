@@ -53,17 +53,9 @@ function InboxRow({
     updateTask.mutate({ id: task.id, data });
   }
 
-  // Assigning a week or project is what "triaging out of the inbox" means
-  // per SPEC's Inbox model — advance status so the task leaves this list.
-  function patchAndTriage(data: TaskUpdate) {
-    const leavesInbox = data.scheduled_week || data.project_id;
-    const shouldAdvance = task.status === TaskStatus.INBOX && leavesInbox;
-    patch(shouldAdvance ? { ...data, status: TaskStatus.PLANNED } : data);
-  }
-
   function applySuggestion() {
     if (!suggestion) return;
-    patchAndTriage({
+    patch({
       role_id: suggestion.role_id ?? undefined,
       quadrant: suggestion.quadrant,
       project_id: suggestion.project_id,
@@ -91,7 +83,7 @@ function InboxRow({
 
         <Select
           value={task.project_id ?? "none"}
-          onValueChange={(v) => patchAndTriage({ project_id: v === "none" ? null : v })}
+          onValueChange={(v) => patch({ project_id: v === "none" ? null : v })}
         >
           <SelectTrigger className="w-36">
             <SelectValue placeholder="Project" />
@@ -122,7 +114,7 @@ function InboxRow({
         <Input
           value={week}
           onChange={(e) => setWeek(e.target.value)}
-          onBlur={() => patchAndTriage({ scheduled_week: week || null })}
+          onBlur={() => patch({ scheduled_week: week || null })}
           placeholder="YYYY-Www"
           className="w-28"
         />
@@ -211,11 +203,6 @@ export default function InboxPage() {
       bulkField === "project_id"
         ? { project_id: bulkValue === "none" ? null : bulkValue }
         : { [bulkField]: bulkValue };
-    // Every row on this page is status=inbox; assigning a project or week is
-    // what triaging out of the inbox means, so advance status along with it.
-    if (bulkField === "project_id" || bulkField === "scheduled_week") {
-      data.status = TaskStatus.PLANNED;
-    }
     try {
       await Promise.all([...selected].map((id) => updateTask.mutateAsync({ id, data })));
       toast.success(`Updated ${selected.size} task(s)`);

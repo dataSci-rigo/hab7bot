@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CaptureService,
   GoalsService,
+  GoogleService,
   InboxService,
   MissionService,
   ProjectsService,
@@ -9,6 +10,7 @@ import {
   SettingsService,
   TasksService,
   WeeksService,
+  type AppSettingsUpdate,
   type BreakdownTask,
   type GoalCreate,
   type GoalUpdate,
@@ -271,9 +273,62 @@ export function useSettings() {
 export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (weekStartDay: string) =>
-      SettingsService.updateSettingsApiV1SettingsPut({ week_start_day: weekStartDay }),
+    mutationFn: (data: AppSettingsUpdate) =>
+      SettingsService.updateSettingsApiV1SettingsPut(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+// ── Google sync ──────────────────────────────────────────────────────────
+
+export function useGoogleStatus() {
+  return useQuery({
+    queryKey: ["google-status"],
+    queryFn: () => GoogleService.getStatusApiV1GoogleStatusGet(),
+  });
+}
+
+export function useTriggerGoogleSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => GoogleService.triggerSyncApiV1GoogleSyncPost(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["google-status"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["week-plan"] });
+    },
+  });
+}
+
+// ── weekly review ────────────────────────────────────────────────────────
+
+export function useWeeklyReview(isoWeek: string) {
+  return useQuery({
+    queryKey: ["weekly-review", isoWeek],
+    queryFn: () => WeeksService.getWeeklyReviewApiV1WeeksIsoWeekReviewGet(isoWeek),
+    retry: false,
+  });
+}
+
+export function useGenerateWeeklyReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ isoWeek, force }: { isoWeek: string; force?: boolean }) =>
+      WeeksService.generateWeeklyReviewApiV1WeeksIsoWeekReviewGeneratePost(isoWeek, force),
+    onSuccess: (_data, { isoWeek }) =>
+      qc.invalidateQueries({ queryKey: ["weekly-review", isoWeek] }),
+  });
+}
+
+export function useSaveReflection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ isoWeek, reflection }: { isoWeek: string; reflection: string }) =>
+      WeeksService.setWeeklyReviewReflectionApiV1WeeksIsoWeekReviewReflectionPut(isoWeek, {
+        reflection,
+      }),
+    onSuccess: (_data, { isoWeek }) =>
+      qc.invalidateQueries({ queryKey: ["weekly-review", isoWeek] }),
   });
 }
 

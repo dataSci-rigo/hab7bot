@@ -231,4 +231,44 @@ AGENT_TOOLS = [
             ],
         },
     },
+    {
+        "name": "get_progress_analysis",
+        "description": "Read an already-generated weekly review (stats + AI analysis). "
+        "Does NOT generate one — if none exists yet for the requested week, say so; "
+        "reviews are generated automatically at week's end or from the web Regenerate button.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "iso_week": {
+                    "type": "string",
+                    "description": "ISO week e.g. '2026-W32'. Omit for the current week.",
+                }
+            },
+        },
+    },
+    {
+        "name": "add_reflection",
+        "description": "Save the user's free-text reflection on a week, e.g. from the guided "
+        "Sunday planning conversation.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "iso_week": {
+                    "type": "string",
+                    "description": "ISO week e.g. '2026-W32'. Omit for the current week.",
+                },
+                "reflection": {"type": "string"},
+            },
+            "required": ["reflection"],
+        },
+    },
+    {
+        "name": "log_daily_note",
+        "description": "Log a short note about today, e.g. from the evening check-in reply.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"note": {"type": "string"}},
+            "required": ["note"],
+        },
+    },
 ]

@@ -16,4 +16,4 @@ def get_settings(db: Session = Depends(get_db)) -> AppSettingsRead:
 
 @router.put("", response_model=AppSettingsRead)
 def update_settings(data: AppSettingsUpdate, db: Session = Depends(get_db)) -> AppSettingsRead:
-    return settings_service.update_settings(db, data.week_start_day)
+    return settings_service.update_settings(db, data)

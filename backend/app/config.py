@@ -32,5 +32,19 @@ class Settings(BaseSettings):
 
     week_start_day: str = "monday"
 
+    # Same OAuth client already set up for semantic_task_manager (project
+    # "humorbot") — reused rather than registering a new Google Cloud app.
+    _humorbot_client_secret = (
+        "client_secret_994331043279-p0c58fgvb760e5b37p90qgp35asn4e5j"
+        ".apps.googleusercontent.com.json"
+    )
+    google_client_secret_path: str = str(Path.home() / "Documents" / _humorbot_client_secret)
+    google_token_path: str = str(BACKEND_DIR / "data" / "google_token.json")
+
+    # Linked from the Sunday planning prompt so the user can finish planning
+    # visually — a deployment-level constant (dev vs. VM URL), not
+    # user-editable data, so it lives here rather than on AppSettings.
+    web_app_url: str = "http://localhost:3000"
+
 
 settings = Settings()

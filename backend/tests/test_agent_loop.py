@@ -228,3 +228,26 @@ def test_max_iterations_fallback(
 
     assert result.reply_text
     assert len(fake.calls) == 6  # MAX_TOOL_ITERATIONS
+
+
+def test_leading_proactive_assistant_message_is_dropped_before_first_user_reply(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A scheduled job (morning brief, evening check-in, Sunday planning
+    prompt) can push the very first message in conversation history as an
+    assistant turn. The Anthropic API requires the first message to be
+    role="user" — regression test for the agent.py fix that trims any
+    leading assistant messages before replaying history.
+    """
+    from app.services import conversation as conversation_service
+
+    conversation_service.append_message(db_session, "assistant", "Good morning! Anything to add?")
+
+    fake = FakeModelClient([FakeMessage([FakeTextBlock("Got it.")])])
+    monkeypatch.setattr("app.ai.agent.create_message", fake)
+
+    result = run_agent_turn(db_session, "just the usual")
+
+    assert result.reply_text == "Got it."
+    sent_messages = fake.calls[0]["messages"]
+    assert sent_messages[0]["role"] == "user"

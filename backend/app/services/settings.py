@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSettings
+from app.schemas.settings import AppSettingsUpdate
 
 
 def get_settings(db: Session) -> AppSettings:
@@ -14,9 +15,10 @@ def get_settings(db: Session) -> AppSettings:
     return settings_row
 
 
-def update_settings(db: Session, week_start_day: str) -> AppSettings:
+def update_settings(db: Session, data: AppSettingsUpdate) -> AppSettings:
     settings_row = get_settings(db)
-    settings_row.week_start_day = week_start_day
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(settings_row, field, value)
     db.commit()
     db.refresh(settings_row)
     return settings_row

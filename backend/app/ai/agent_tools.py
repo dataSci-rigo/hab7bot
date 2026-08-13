@@ -22,11 +22,14 @@ from app.models.task import Task
 from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.services import ai_accept as ai_accept_service
+from app.services import daily_log as daily_log_service
 from app.services import goals as goals_service
 from app.services import projects as projects_service
 from app.services import roles as roles_service
 from app.services import tasks as tasks_service
 from app.services import week_plans as week_plans_service
+from app.services import weekly_review as weekly_review_service
+from app.services.clock import today
 from app.services.iso_week import current_iso_week_plus
 
 # Tool names whose *execution* the bot must gate behind an inline-keyboard
@@ -315,6 +318,31 @@ def _accept_project_suggestion(db: Session, args: dict) -> dict:
     return _project_brief(project, roles_by_id)
 
 
+def _get_progress_analysis(db: Session, args: dict) -> dict:
+    iso_week = args.get("iso_week") or current_iso_week_plus(0)
+    review = weekly_review_service.get_review(db, iso_week)
+    if review is None:
+        return {"iso_week": iso_week, "found": False}
+    return {
+        "iso_week": iso_week,
+        "found": True,
+        "stats": review.stats,
+        "ai_analysis": review.ai_analysis,
+        "reflection": review.reflection,
+    }
+
+
+def _add_reflection(db: Session, args: dict) -> dict:
+    iso_week = args.get("iso_week") or current_iso_week_plus(0)
+    review = weekly_review_service.set_reflection(db, iso_week, args["reflection"])
+    return {"iso_week": iso_week, "reflection": review.reflection}
+
+
+def _log_daily_note(db: Session, args: dict) -> dict:
+    log = daily_log_service.set_note(db, today(), args["note"])
+    return {"log_date": log.log_date.isoformat(), "note": log.note}
+
+
 _DISPATCH = {
     "create_task": _create_task,
     "list_tasks": _list_tasks,
@@ -332,6 +360,9 @@ _DISPATCH = {
     "accept_breakdown_tasks": _accept_breakdown_tasks,
     "suggest_projects": _suggest_projects,
     "accept_project_suggestion": _accept_project_suggestion,
+    "get_progress_analysis": _get_progress_analysis,
+    "add_reflection": _add_reflection,
+    "log_daily_note": _log_daily_note,
 }
 
 

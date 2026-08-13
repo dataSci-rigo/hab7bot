@@ -8,6 +8,7 @@ from app.ai.schemas import (
     CaptureInference,
     InboxTriageOutput,
     ProjectSuggestionsOutput,
+    WeekAnalysis,
 )
 
 BREAKDOWN_TOOL = {
@@ -32,4 +33,10 @@ INBOX_TRIAGE_TOOL = {
     "name": "triage_inbox",
     "description": "Infer metadata for every task currently in the inbox.",
     "input_schema": InboxTriageOutput.model_json_schema(),
+}
+
+WEEK_ANALYSIS_TOOL = {
+    "name": "analyze_week",
+    "description": "Analyze a week's planning/completion stats and write a candid review.",
+    "input_schema": WeekAnalysis.model_json_schema(),
 }

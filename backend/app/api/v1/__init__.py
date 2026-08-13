@@ -1,6 +1,18 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, capture, goals, inbox, mission, projects, roles, settings, tasks, weeks
+from app.api.v1 import (
+    auth,
+    capture,
+    goals,
+    google,
+    inbox,
+    mission,
+    projects,
+    roles,
+    settings,
+    tasks,
+    weeks,
+)
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router)
@@ -13,3 +25,4 @@ router.include_router(mission.router)
 router.include_router(settings.router)
 router.include_router(capture.router)
 router.include_router(inbox.router)
+router.include_router(google.router)

@@ -1,5 +1,7 @@
 from app.models.conversation import ConversationMessage, ConversationSummary
+from app.models.daily_log import DailyLog
 from app.models.goal import Goal
+from app.models.google_link import GoogleCalendarEventLink, GoogleTaskLink
 from app.models.mission import MissionStatement
 from app.models.project import Project
 from app.models.role import Role
@@ -12,7 +14,10 @@ __all__ = [
     "AppSettings",
     "ConversationMessage",
     "ConversationSummary",
+    "DailyLog",
     "Goal",
+    "GoogleCalendarEventLink",
+    "GoogleTaskLink",
     "MissionStatement",
     "Project",
     "Role",

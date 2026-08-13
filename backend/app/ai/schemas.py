@@ -63,3 +63,22 @@ class InboxTriageItem(BaseModel):
 
 class InboxTriageOutput(BaseModel):
     items: list[InboxTriageItem]
+
+
+# ── §3.3 weekly progress analysis ────────────────────────────────────────────
+
+
+class WeekAnalysisSuggestion(BaseModel):
+    change: str
+    why: str
+    how: str
+
+
+class WeekAnalysis(BaseModel):
+    summary: str
+    wins: list[str] = []
+    concerns: list[str] = []
+    patterns: list[str] = []
+    suggestions: list[WeekAnalysisSuggestion] = Field(default=[], max_length=3)
+    suggested_big_rock_candidates_next_week: list[str] = []
+    q2_percent_trend: str

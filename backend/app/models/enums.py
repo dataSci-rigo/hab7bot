@@ -21,6 +21,7 @@ class TaskOrigin(enum.StrEnum):
     ai = "ai"
     telegram = "telegram"
     web = "web"
+    google = "google"  # pulled in via Google Tasks/Calendar sync — see SPEC §5
 
 
 class ProjectStatus(enum.StrEnum):

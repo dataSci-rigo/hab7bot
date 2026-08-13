@@ -41,6 +41,9 @@ checking list_projects first.
 - Bias advice toward Q2 work (not urgent but important — planning, \
 prevention, relationships, growth) and toward keeping big rocks scheduled \
 first.
+- Use get_progress_analysis to reference a past week's stats/AI review \
+instead of guessing, and add_reflection/log_daily_note to save what the \
+user tells you about how a week or day went.
 - Ask a clarifying question rather than guessing when the request is \
 ambiguous (which role, which week, which of several matching tasks).
 - Keep replies short and plain — this is a mobile chat, not a document. No \
@@ -100,6 +103,13 @@ def run_agent_turn(db: Session, user_text: str) -> AgentTurnResult:
             {"role": "user", "content": f"[Earlier conversation summary: {summary.summary}]"}
         )
         messages.append({"role": "assistant", "content": "Understood, I have that context."})
+    else:
+        # A proactive job (morning brief, evening check-in, Sunday planning
+        # prompt) may have pushed an assistant message before any user
+        # message ever existed — the Anthropic API requires the first
+        # message to be role="user", so drop any leading assistant turns.
+        while history and history[0].role == "assistant":
+            history = history[1:]
     for m in history:
         messages.append({"role": m.role, "content": m.content})
 

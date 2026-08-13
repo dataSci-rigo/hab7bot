@@ -7,4 +7,5 @@ export enum TaskOrigin {
     AI = 'ai',
     TELEGRAM = 'telegram',
     WEB = 'web',
+    GOOGLE = 'google',
 }
