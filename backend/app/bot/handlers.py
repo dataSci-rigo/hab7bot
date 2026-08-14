@@ -8,6 +8,7 @@ from app.ai.agent import run_agent_turn
 from app.ai.agent_tools import ToolError, dispatch_tool
 from app.bot import state
 from app.bot.format import capture_confirmation_text
+from app.bot.jobs import run_tick
 from app.bot.keyboards import capture_fix_keyboard, confirmation_keyboard, role_picker_keyboard
 from app.config import settings
 from app.db import SessionLocal
@@ -17,6 +18,7 @@ from app.services import capture as capture_service
 from app.services import projects as projects_service
 from app.services import roles as roles_service
 from app.services import tasks as tasks_service
+from app.services.clock import now
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +44,37 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> N
         "add: <text> — fast capture, AI-classified, with a fix keyboard\n"
         "Anything else — talk to me conversationally: \"what's on my plate this "
         "week?\", \"break down the garage project\", \"move that to Friday\", "
-        "\"mark the dentist task done\"."
+        "\"mark the dentist task done\".\n"
+        "/debug tick — force-fire the morning brief/evening check-in/weekly review/"
+        "planning prompt right now, bypassing day/time gating (testing only)."
     )
+
+
+async def _debug_tick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    with SessionLocal() as db:
+        await run_tick(db, context, now(), force=True)
+    await update.message.reply_text(
+        "Debug tick fired — all four proactive behaviors ran, bypassing day/time/"
+        "already-sent gating."
+    )
+
+
+DEBUG_ACTIONS = {"tick": _debug_tick}
+
+
+async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Owner-only debug commands, e.g. `/debug tick` to force-fire the
+    scheduler tick's four behaviors immediately (bypassing all gating) so
+    Sunday-only behaviors can be tested without waiting for an actual
+    Sunday. Add more subcommands to DEBUG_ACTIONS as needed.
+    """
+    if not _is_allowed(update):
+        return
+    args = context.args or []
+    if not args or args[0] not in DEBUG_ACTIONS:
+        await update.message.reply_text(f"Usage: /debug <{'|'.join(DEBUG_ACTIONS)}>")
+        return
+    await DEBUG_ACTIONS[args[0]](update, context)
 
 
 async def handle_message(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -146,3 +146,38 @@ async def test_planning_prompt_does_not_fire_on_a_weekday(db_session: Session) -
 
     week_plan = week_plans_service.get_or_create_week_plan(db_session, "2026-W34")
     assert week_plan.planning_prompt_sent_at is None
+
+
+@pytest.mark.asyncio
+async def test_force_tick_fires_all_four_behaviors_on_a_weekday(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.services.weekly_review.analyze_week", lambda stats, previous, reflection: None
+    )
+    context = FakeContext()
+
+    await run_tick(db_session, context, datetime(2026, 8, 17, 9, 0), force=True)  # Monday 09:00
+
+    # morning brief + evening check-in + weekly planning = 3 sends (weekly
+    # review generation doesn't send a message of its own)
+    assert context.bot.send_message.await_count == 3
+    assert weekly_review_service.get_review(db_session, "2026-W34") is not None
+    week_plan = week_plans_service.get_or_create_week_plan(db_session, "2026-W34")
+    assert week_plan.planning_prompt_sent_at is not None
+
+
+@pytest.mark.asyncio
+async def test_force_tick_fires_again_even_if_already_sent_today(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.services.weekly_review.analyze_week", lambda stats, previous, reflection: None
+    )
+    context = FakeContext()
+    moment = datetime(2026, 8, 17, 9, 0)
+
+    await run_tick(db_session, context, moment, force=True)
+    await run_tick(db_session, context, moment, force=True)
+
+    assert context.bot.send_message.await_count == 6

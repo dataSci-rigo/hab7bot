@@ -69,10 +69,6 @@ async def _send_evening_checkin_prompt(context: ContextTypes.DEFAULT_TYPE, db: S
     await _push_proactive_message(context, db, text)
 
 
-def _generate_weekly_review(db: Session, iso_week: str) -> None:
-    weekly_review_service.generate_review(db, iso_week)
-
-
 async def _send_planning_prompt(
     context: ContextTypes.DEFAULT_TYPE, db: Session, iso_week: str
 ) -> None:
@@ -93,36 +89,50 @@ async def _send_planning_prompt(
     await _push_proactive_message(context, db, text)
 
 
-async def run_tick(db: Session, context: ContextTypes.DEFAULT_TYPE, current: datetime) -> None:
+async def run_tick(
+    db: Session, context: ContextTypes.DEFAULT_TYPE, current: datetime, force: bool = False
+) -> None:
     """Core tick logic, taking `db`/`current` as plain arguments so it can be
     tested directly (simulated clock) without going through PTB's JobQueue —
     mirrors how test_google_sync.py tests sync_tasks(db_session) rather than
     the google_sync_job wrapper.
+
+    `force=True` bypasses the day-of-week/time-of-day/already-sent gating and
+    fires all four behaviors unconditionally — used by the bot's `/debug
+    tick` command so weekly-only behaviors (review/planning, normally
+    Sunday-gated) can be exercised without waiting for an actual Sunday.
     """
     app_settings = settings_service.get_settings(db)
     current_time_str = current.strftime("%H:%M")
     today_date = current.date()
     log = daily_log_service.get_or_create_log(db, today_date)
 
-    if not log.morning_brief_sent and current_time_str >= app_settings.morning_brief_time:
+    send_morning = force or (
+        not log.morning_brief_sent and current_time_str >= app_settings.morning_brief_time
+    )
+    if send_morning:
         await _send_morning_brief(context, db, today_date)
         daily_log_service.mark_morning_brief_sent(db, log)
 
-    if not log.evening_checkin_sent and current_time_str >= app_settings.evening_checkin_time:
+    send_evening = force or (
+        not log.evening_checkin_sent and current_time_str >= app_settings.evening_checkin_time
+    )
+    if send_evening:
         await _send_evening_checkin_prompt(context, db)
         daily_log_service.mark_evening_checkin_sent(db, log)
 
-    if current.isoweekday() == 7:  # Sunday — SPEC's review/planning anchor day
+    if force or current.isoweekday() == 7:  # Sunday — SPEC's review/planning anchor day
         iso_week = iso_week_string(today_date)
 
-        if current_time_str >= app_settings.weekly_review_time:
-            _generate_weekly_review(db, iso_week)
+        if force or current_time_str >= app_settings.weekly_review_time:
+            weekly_review_service.generate_review(db, iso_week, force=force)
 
         week_plan = week_plans_service.get_or_create_week_plan(db, iso_week)
-        if (
+        send_planning = force or (
             week_plan.planning_prompt_sent_at is None
             and current_time_str >= app_settings.weekly_planning_time
-        ):
+        )
+        if send_planning:
             await _send_planning_prompt(context, db, iso_week)
             week_plan.planning_prompt_sent_at = current
             db.commit()

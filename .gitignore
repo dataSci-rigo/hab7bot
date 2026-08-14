@@ -5,3 +5,4 @@
 __pycache__/
 *.pyc
 backend/openapi.json
+backend/data/google_token.json

@@ -5,7 +5,7 @@ import logging
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from app.bot.handlers import handle_callback, handle_message, help_command, start
+from app.bot.handlers import debug_command, handle_callback, handle_message, help_command, start
 from app.bot.jobs import (
     GOOGLE_SYNC_INTERVAL_SECONDS,
     SCHEDULER_TICK_INTERVAL_SECONDS,
@@ -22,6 +22,7 @@ def build_application() -> Application:
     app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("debug", debug_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.job_queue.run_repeating(
