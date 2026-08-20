@@ -42,9 +42,14 @@ async def _push_proactive_message(
     """Sends a bot-initiated message and records it as an assistant turn in
     conversation history, so the user's next free-text reply flows through
     the ordinary run_agent_turn path unchanged (SPEC §2.1 guided prompts).
+
+    Send first, then record — if the Telegram call fails (transient network
+    error), nothing is written to history, so the caller's "already sent"
+    flag also stays unset and the next tick/retry sends a clean single copy
+    instead of leaving an orphaned or duplicated history row.
     """
-    conversation_service.append_message(db, "assistant", text)
     await context.bot.send_message(chat_id=settings.telegram_allowed_user_id, text=text)
+    conversation_service.append_message(db, "assistant", text)
 
 
 async def _send_morning_brief(

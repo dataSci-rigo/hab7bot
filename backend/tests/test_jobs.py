@@ -181,3 +181,24 @@ async def test_force_tick_fires_again_even_if_already_sent_today(
     await run_tick(db_session, context, moment, force=True)
 
     assert context.bot.send_message.await_count == 6
+
+
+@pytest.mark.asyncio
+async def test_failed_send_does_not_write_history_or_mark_sent(db_session: Session) -> None:
+    """Regression: a transient Telegram send failure must not leave an
+    orphaned conversation_messages row or a falsely-set 'already sent'
+    flag — otherwise a retry either silently skips the resend (flag set
+    despite no message ever arriving) or duplicates history on retry
+    (message recorded despite the send never succeeding).
+    """
+    context = FakeContext()
+    context.bot.send_message.side_effect = RuntimeError("network blip")
+
+    with pytest.raises(RuntimeError):
+        await run_tick(db_session, context, MONDAY)
+
+    assert conversation_service.get_recent_messages(db_session) == []
+    from app.services import daily_log as daily_log_service
+
+    log = daily_log_service.get_or_create_log(db_session, MONDAY.date())
+    assert log.morning_brief_sent is False

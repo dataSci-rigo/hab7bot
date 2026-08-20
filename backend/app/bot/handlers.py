@@ -51,8 +51,16 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def _debug_tick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    with SessionLocal() as db:
-        await run_tick(db, context, now(), force=True)
+    try:
+        with SessionLocal() as db:
+            await run_tick(db, context, now(), force=True)
+    except Exception as e:
+        logger.exception("Debug tick failed partway through")
+        await update.message.reply_text(
+            f"Debug tick failed partway through ({e}). Whatever already sent is real; "
+            "check logs and re-run to retry the rest."
+        )
+        return
     await update.message.reply_text(
         "Debug tick fired — all four proactive behaviors ran, bypassing day/time/"
         "already-sent gating."

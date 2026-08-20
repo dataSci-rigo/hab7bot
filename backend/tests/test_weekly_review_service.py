@@ -8,6 +8,7 @@ from app.schemas.task import TaskCreate
 from app.services import roles as roles_service
 from app.services import tasks as tasks_service
 from app.services import weekly_review as weekly_review_service
+from app.services.iso_week import current_iso_week_plus
 
 
 def _make_role(db_session: Session, name: str = "Engineer"):
@@ -23,21 +24,25 @@ def _fake_analysis(**overrides) -> WeekAnalysis:
 
 
 def test_compute_week_stats_counts_big_rocks_and_carry_over(db_session: Session) -> None:
+    # Uses the real current ISO week (not a hardcoded one) because
+    # avg_capture_to_completion_hours compares real created_at/completed_at
+    # wall-clock timestamps against the target week's date range.
+    iso_week = current_iso_week_plus(0)
     role = _make_role(db_session)
     rock = tasks_service.create_task(
         db_session,
-        TaskCreate(title="Rock", role_id=role.id, is_big_rock=True, scheduled_week="2026-W33"),
+        TaskCreate(title="Rock", role_id=role.id, is_big_rock=True, scheduled_week=iso_week),
     )
     tasks_service.complete_task(db_session, rock.id)
     tasks_service.create_task(
         db_session,
         TaskCreate(
             title="Still pending", role_id=role.id, status=TaskStatus.planned,
-            scheduled_week="2026-W33",
+            scheduled_week=iso_week,
         ),
     )
 
-    stats = weekly_review_service.compute_week_stats(db_session, "2026-W33")
+    stats = weekly_review_service.compute_week_stats(db_session, iso_week)
 
     assert stats["big_rock_total"] == 1
     assert stats["big_rock_completed"] == 1

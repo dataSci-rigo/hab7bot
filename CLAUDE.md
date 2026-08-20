@@ -30,6 +30,7 @@ compass/
 │       ├── api/v1/               # routes
 │       ├── ai/                   # anthropic client, prompts/, tools/
 │       ├── bot/                  # telegram entry, agent loop, handlers
+│       ├── integrations/google/  # auth, tasks, calendar, sync (Phase 5)
 │       └── scheduler/            # APScheduler jobs
 └── web/                          # Next.js 15, App Router, TS
     └── src/{app,components,lib}
@@ -57,11 +58,15 @@ Pages: This Week board (drag-to-schedule, big-rock pinning, complete/uncomplete)
 python-telegram-bot v21 long-polling worker; allowed-user gate; quick capture with inference + inline fix keyboard; the conversational agent loop per SPEC §2.1 with the full tool set calling services; conversation history table with rolling window + summarization; destructive-action confirmations.
 **DoD:** from Telegram alone: capture, query the week, break down a project, reschedule tasks, complete tasks — all conversationally; agent tests with faked model client.
 
-### Phase 5 — Proactive loops + weekly review
-APScheduler jobs (morning brief, evening check-in, Sunday review generation then planning prompt) with idempotency; §3.3 `analyze_week` + WeeklyReview records; web Weekly Review page + reflections; guided Sunday planning conversation in the bot producing a draft week plan.
+### Phase 5 — Google Calendar & Tasks sync
+Build `app/integrations/google/` (`auth.py`, `tasks.py`, `calendar.py`, `sync.py`), mirroring `semantic_task_manager`'s proven structure and push-then-pull ordering (see `DECISIONS.md` for why that project's pattern, not a from-scratch design). `GoogleTaskLink` + `GoogleCalendarEventLink` models + migration. Compass metadata (role/quadrant/is_big_rock/project) serialized into the Google Task's `notes` field on push, parsed back on pull — never lost. Calendar-imported events with no link yet run through the existing §3.4/§3.6 capture-inference pipeline, not a new one. Manual sync REST (`GET /google/status`, `POST /google/sync`) + web Settings UI section (replaces the disabled placeholder from Phase 2). This phase also registers the bot worker's first job on `python-telegram-bot`'s existing `JobQueue` (APScheduler-backed already, just unused until now) — periodic sync, e.g. every 10–15 min.
+**DoD:** a task created in Compass appears in Google Tasks with its metadata preserved in `notes`; a task edited in Google Tasks flows back to Compass; a Compass task with a `scheduled_day` appears as a real Google Calendar event; an event added directly in Calendar shows up as a new, AI-classified Compass task. One-time `oauth_setup.py`-equivalent script documented and run locally (never on the VM). Sync tested with a faked Google API client, per ground rule 9's "faked client" testing style (mirrors how Phase 3/4 fake the Anthropic client) — don't hit the real Google API in the test suite.
+
+### Phase 6 — Proactive loops + weekly review
+APScheduler jobs (morning brief, evening check-in, Sunday review generation then planning prompt) with idempotency, added onto the `JobQueue` Phase 5 already wired up; §3.3 `analyze_week` + WeeklyReview records; web Weekly Review page + reflections; guided Sunday planning conversation in the bot producing a draft week plan.
 **DoD:** simulated-clock tests prove jobs fire once and messages render; a full AI-assisted weekly cycle works via bot with web review.
 
-### Phase 6 — Trends, polish, ship
+### Phase 7 — Trends, polish, ship
 Trends page (Recharts: Q2 %, big-rock rate, role share, capture vs. complete); JSON export; settings for check-in times/model/week start; Caddy TLS option in compose; README with setup guide (BotFather steps, env vars, deployment via Tailscale or Caddy); voice-note transcription via `faster-whisper` if time permits (optional — mark clearly if skipped).
 **DoD:** fresh-machine install from README succeeds; `make check` green; demo data screenshot flow documented.
 

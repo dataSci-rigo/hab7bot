@@ -16,6 +16,8 @@ The planner is organized around Covey's framework:
 - **Big Rock** — not a separate entity; a boolean flag on Task (`is_big_rock`). Big rocks are chosen during weekly planning, scheduled *first*, max ~1–3 per role per week (soft limit, warn only).
 - **Week Plan** — a container for one ISO week: the selected big rocks, scheduled tasks, and a per-role intention note. Weeks start Monday (configurable to Sunday).
 - **Weekly Review** — a record generated at week's end: what was planned vs. done, quadrant distribution, role balance, the AI's analysis, and the user's own reflections.
+- **GoogleTaskLink** — links a Task to a Google Task for two-way sync (see §5). Fields: `task_id` (fk), `google_task_id`, `google_list_id`, `google_updated_at`, `last_synced_at`.
+- **GoogleCalendarEventLink** — links a Task to a Google Calendar event for two-way sync (see §5). Fields: `task_id` (fk), `google_event_id`, `google_calendar_id`, `google_updated_at`, `last_synced_at`.
 - **Quadrant** — every task is tagged Q1–Q4 (Urgent/Important matrix):
   - Q1 Urgent + Important (firefighting)
   - Q2 Not Urgent + Important (the target zone — planning, prevention, relationships, growth)
@@ -38,7 +40,7 @@ The planner is organized around Covey's framework:
 | scheduled_day | date nullable | optional day-level scheduling |
 | estimate_minutes | int nullable | AI-suggested during breakdown |
 | actual_minutes | int nullable | optional, user-reported |
-| origin | enum | `user`, `ai`, `telegram`, `web` (source of capture) |
+| origin | enum | `user`, `ai`, `telegram`, `web`, `google` (source of capture; `google` = pulled in via §5 sync) |
 | created_at / completed_at | timestamps | completed_at powers analysis |
 
 **Inbox model:** anything captured without a week/project lands in the Inbox (`status=inbox`). Weekly planning is largely the act of triaging inbox → week plan.
@@ -69,7 +71,7 @@ The bot is a **full conversational agent**, not a command menu. The user talks t
 **Safety rails:** destructive actions (delete/drop >1 item, abandoning a project) require an inline-keyboard confirmation before the tool executes.
 
 ### 2.2 Web App — review, plan, ingest
-Next.js (App Router, TypeScript) frontend against the FastAPI backend. Since it's single-user self-hosted: login is a single shared secret → session cookie (see §5).
+Next.js (App Router, TypeScript) frontend against the FastAPI backend. Since it's single-user self-hosted: login is a single shared secret → session cookie (see §6).
 
 **Pages:**
 1. **This Week (home)** — kanban-ish weekly board: columns Mon–Sun + Backlog; big rocks pinned at top per role with progress; drag to schedule/reschedule; check off tasks. Quadrant shown as a colored chip.
@@ -78,7 +80,7 @@ Next.js (App Router, TypeScript) frontend against the FastAPI backend. Since it'
 4. **Projects** — list + detail. Detail page has the **"Break down with AI"** action: shows proposed milestones/tasks with estimates and quadrants in an editable preview; user accepts all/some; accepted items become real tasks. Also **"Suggest projects"** on the list page: AI proposes 3–5 projects grounded in goals + mission + current portfolio gaps (especially neglected roles / missing Q2 & Sharpen-the-Saw work); each suggestion shows its rationale; accept → creates project as `idea`.
 5. **Weekly Review** — the review record for any past week: planned vs. completed, quadrant pie, per-role balance bar, streaks, the AI analysis (see §3.3), and a free-text reflection box (user's own answers to: What went well? What didn't? What will I change?). "Regenerate analysis" button.
 6. **Trends** — simple charts across weeks: Q2 %, big-rock completion rate, per-role effort share, tasks captured vs. completed. (Recharts.)
-7. **Settings** — Telegram pairing status, check-in times, week start day, Anthropic model choice, data export (JSON dump).
+7. **Settings** — Telegram pairing status, check-in times, week start day, Anthropic model choice, data export (JSON dump), Google sync status (`google_sync_enabled`) + manual "Sync now" (see §5).
 
 Ingestion on the web = quick-add box available on every page (same AI inference of role/quadrant as Telegram capture) + full task/project forms.
 
@@ -113,6 +115,9 @@ Client: official `anthropic` Python SDK. Default model **`claude-sonnet-4-6`** (
 
 ### 3.5 Conversational agent (Telegram)
 Described in §2.1. Uses the same tool implementations as the REST layer (shared service functions) so bot and web can't drift.
+
+### 3.6 Calendar-event inference
+Reuses §3.4's `infer_task_metadata` unchanged: an incoming Google Calendar event with no `GoogleCalendarEventLink` yet is treated as captured text (event title + description) and run through the same fast-model inference used by `/capture`, landing as a new Task with the same graceful-degradation guarantee (still created, with defaults, if the AI call fails). No parallel inference path.
 
 **Cost controls:** per-day API call budget in settings (default generous); context blocks are compact summaries, never full-table dumps; capture inference uses the fast model.
 
@@ -151,15 +156,42 @@ Described in §2.1. Uses the same tool implementations as the REST layer (shared
 
 ---
 
-## 5. Auth & Security (single-user posture)
+## 5. Google Sync (Calendar + Tasks)
+
+Two-way sync with the user's real Google Calendar and Google Tasks, using the same OAuth client already set up for a prior project (`client_secret_...json`, project "humorbot").
+
+**Auth:** one-time local authorization, mirroring the proven pattern in `semantic_task_manager/oauth_setup.py` — an interactive script using `InstalledAppFlow.run_local_server()` that opens a browser, the user approves, and a refresh token is saved to `backend/data/google_token.json` (gitignored). This script is run by the user directly, never headlessly and never on the VM (no browser available there). The bot/api processes then authenticate silently using the saved token, refreshing it as needed.
+
+**Google Tasks sync** (two-way):
+- A dedicated Google Tasks list (e.g. "Compass") holds every synced task.
+- Sync order per run: push new local tasks → push local updates → pull remote changes — pushing before pulling means a just-pushed local change is never immediately overwritten by the pull that follows it.
+- Conflict resolution: last-write-wins by the `updated` timestamp Google reports, compared against `GoogleTaskLink.last_synced_at`.
+- Compass-specific fields (role, quadrant, `is_big_rock`, project title) have no equivalent in Google Tasks — they are serialized into the Google Task's `notes` field as a small structured block above any free-text notes, and parsed back out on pull, so a task round-trips through Google Tasks without losing Compass metadata. This also means the Telegram agent can query/reason about that metadata for tasks that originated on the Google side.
+- A task created directly in Google Tasks with no existing `GoogleTaskLink` becomes a new Compass task on pull, landing in the Inbox (role/quadrant defaulted, same as any other capture without inference).
+
+**Google Calendar sync** (two-way):
+- A dedicated "Compass" calendar (to avoid cluttering the primary one).
+- Tasks with a `scheduled_day` push as events; `estimate_minutes` sets the event duration where present.
+- An event created directly in Calendar with no existing `GoogleCalendarEventLink` becomes a new Compass task via §3.6 inference on pull, scheduled to the event's day.
+- Same push-then-pull ordering and last-write-wins-by-`updated` conflict resolution as Tasks sync, tracked via `GoogleCalendarEventLink`.
+
+**Trigger:** a periodic APScheduler job in the bot worker (the bot worker's first scheduled job — see §4), plus a manual "Sync now" trigger from the web Settings page.
+
+**Env vars:** `GOOGLE_CLIENT_SECRET_PATH` (defaults to the existing humorbot client-secret file path, overridable), `GOOGLE_TOKEN_PATH` (defaults to `backend/data/google_token.json`).
+
+**Out of scope for this phase:** merging Compass with `semantic_task_manager` into one system — an explicit future goal (phase 8-10+), not attempted here. This phase only ensures no Compass-specific data is lost in the round-trip, so that future merge stays possible.
+
+---
+
+## 6. Auth & Security (single-user posture)
 - **Web:** login page takes `APP_PASSWORD` (env); success sets an HTTP-only session cookie (signed, `itsdangerous`). All `/api/v1/*` routes require it. CORS locked to the web origin.
 - **Telegram:** bot only responds to `TELEGRAM_ALLOWED_USER_ID` (env). All other senders get silence.
-- **Secrets:** `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `APP_PASSWORD`, `SESSION_SECRET` via `.env` (never committed; `.env.example` provided).
+- **Secrets:** `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `APP_PASSWORD`, `SESSION_SECRET`, `GOOGLE_CLIENT_SECRET_PATH`, `GOOGLE_TOKEN_PATH` via `.env` (never committed; `.env.example` provided). `google_token.json` itself is also never committed.
 - Intended deployment: home server / VPS behind Tailscale or Caddy+TLS. No public signup, no multi-tenancy anywhere in the schema (but keep `user_id` off — adding it later is the Postgres-migration moment).
 
 ---
 
-## 6. API Surface (REST, /api/v1)
+## 7. API Surface (REST, /api/v1)
 Standard CRUD for roles, goals, projects, tasks, week-plans, reviews, settings — plus:
 - `POST /capture` `{text}` → task via inference (§3.4)
 - `POST /projects/{id}/breakdown` → BreakdownProposal (no writes)
@@ -169,19 +201,22 @@ Standard CRUD for roles, goals, projects, tasks, week-plans, reviews, settings �
 - `POST /weeks/{iso}/review/generate` → runs §3.3
 - `GET /stats/trends?weeks=12`
 - `GET /export` → full JSON dump
+- `GET /google/status` → connected/not-connected, last sync time
+- `POST /google/sync` → runs the sync described in §5 immediately
 
 OpenAPI schema is the contract for the frontend; the frontend generates its client types from it.
 
 ---
 
-## 7. Non-goals (v1)
-- Calendar integration (Google/Outlook) — future phase.
+## 8. Non-goals (v1)
 - Mobile app — Telegram + responsive web is the mobile story.
 - Multi-user, sharing, teams.
 - Time tracking beyond optional manual `actual_minutes`.
 - Notifications outside Telegram.
+- Calendar providers other than Google (Outlook, etc.) — Google Calendar/Tasks sync is in scope (§5); others remain a future phase.
+- Merging with `semantic_task_manager` into one system — explicit future goal (phase 8-10+, see §5).
 
-## 8. Success criteria
+## 9. Success criteria
 - Capture from Telegram to Inbox in <3 seconds perceived.
 - Full weekly planning doable entirely from Telegram *or* entirely from web.
 - Weekly review renders with AI analysis in <20s generation.
