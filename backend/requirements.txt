@@ -1,5 +1,9 @@
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
+# Session-cookie signing in app/auth.py. Undeclared until the first clean
+# VM deploy caught it — locally it resolved only because Flask (unrelated,
+# from another project in the shared conda env) pulled it in transitively.
+itsdangerous==2.2.0
 sqlalchemy==2.0.51
 alembic==1.18.5
 pydantic==2.13.4
