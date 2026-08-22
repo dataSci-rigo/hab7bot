@@ -28,7 +28,10 @@ def _wipe_demo_db() -> None:
 
 
 def _migrate_demo_db() -> None:
-    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    # File-less Config: passing alembic.ini would run fileConfig(), which
+    # disables all existing loggers process-wide — a nasty side effect for
+    # library-style invocation (it silenced app loggers in the test suite).
+    cfg = Config()
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
     os.environ["ALEMBIC_DATABASE_URL"] = settings.demo_database_url
     try:

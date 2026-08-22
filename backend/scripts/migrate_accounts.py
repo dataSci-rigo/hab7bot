@@ -19,7 +19,10 @@ from app.db import account_database_url
 
 
 def migrate_all() -> list[str]:
-    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    # File-less Config: passing alembic.ini would run fileConfig(), which
+    # disables all existing loggers process-wide — a nasty side effect for
+    # library-style invocation (it silenced app loggers in the test suite).
+    cfg = Config()
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
 
     migrated = []

@@ -37,6 +37,9 @@ def client(db_session: Session):
 
 @pytest.fixture()
 def auth_client(client: TestClient):
-    response = client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": "owner", "password": settings.app_password},
+    )
     assert response.status_code == 200
     return client

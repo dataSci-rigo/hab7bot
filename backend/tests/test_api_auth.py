@@ -12,12 +12,14 @@ def test_unauthenticated_request_rejected(client: TestClient) -> None:
 
 
 def test_login_wrong_password_rejected(client: TestClient) -> None:
-    response = client.post("/api/v1/auth/login", json={"password": "wrong"})
+    response = client.post("/api/v1/auth/login", json={"username": "owner", "password": "wrong"})
     assert response.status_code == 401
 
 
 def test_login_then_authenticated_request_succeeds(client: TestClient) -> None:
-    login = client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    login = client.post(
+        "/api/v1/auth/login", json={"username": "owner", "password": settings.app_password}
+    )
     assert login.status_code == 200
 
     response = client.get("/api/v1/roles")
@@ -33,7 +35,9 @@ def test_logout_clears_session(auth_client: TestClient) -> None:
 
 def test_me_reflects_session_state(client: TestClient) -> None:
     assert client.get("/api/v1/auth/me").status_code == 401
-    client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    client.post(
+        "/api/v1/auth/login", json={"username": "owner", "password": settings.app_password}
+    )
     assert client.get("/api/v1/auth/me").json() == {"authenticated": True, "role": "owner"}
 
 
@@ -43,18 +47,19 @@ def test_me_reflects_session_state(client: TestClient) -> None:
 def test_empty_password_never_logs_in(client: TestClient, monkeypatch) -> None:
     # even if APP_PASSWORD were accidentally blanked, "" must not match ""
     monkeypatch.setattr(settings, "app_password", "")
-    assert client.post("/api/v1/auth/login", json={"password": ""}).status_code == 401
+    response = client.post("/api/v1/auth/login", json={"username": "owner", "password": ""})
+    assert response.status_code == 401
 
 
 def test_demo_password_sets_guest_role(client: TestClient) -> None:
-    demo = client.post("/api/v1/auth/login", json={"password": "demo"})
+    demo = client.post("/api/v1/auth/login", json={"username": "demo", "password": "demo"})
     assert demo.status_code == 200
     assert demo.json() == {"ok": True, "role": "guest"}
     assert client.get("/api/v1/auth/me").json() == {"authenticated": True, "role": "guest"}
 
 
 def test_demo_session_can_read_but_not_write(client: TestClient) -> None:
-    client.post("/api/v1/auth/login", json={"password": "demo"})
+    client.post("/api/v1/auth/login", json={"username": "demo", "password": "demo"})
 
     assert client.get("/api/v1/roles").status_code == 200
     assert client.post("/api/v1/roles", json={"name": "Sneaky"}).status_code == 403
@@ -64,13 +69,15 @@ def test_demo_session_can_read_but_not_write(client: TestClient) -> None:
 
 
 def test_demo_session_can_log_out(client: TestClient) -> None:
-    client.post("/api/v1/auth/login", json={"password": "demo"})
+    client.post("/api/v1/auth/login", json={"username": "demo", "password": "demo"})
     assert client.post("/api/v1/auth/logout").status_code == 200
     assert client.get("/api/v1/roles").status_code == 401
 
 
 def test_owner_password_still_grants_full_access(client: TestClient) -> None:
-    login = client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    login = client.post(
+        "/api/v1/auth/login", json={"username": "owner", "password": settings.app_password}
+    )
     assert login.json() == {"ok": True, "role": "owner"}
     assert client.post("/api/v1/roles", json={"name": "Engineer"}).status_code == 201
 
@@ -114,8 +121,37 @@ def test_parse_accounts_skips_malformed_entries(monkeypatch: pytest.MonkeyPatch)
         parse_accounts.cache_clear()
 
 
+def test_right_password_wrong_username_rejected(client: TestClient, accounts) -> None:
+    # username disambiguates — a valid password under the wrong name fails
+    assert client.post(
+        "/api/v1/auth/login", json={"username": "leo", "password": "pw-ana"}
+    ).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login", json={"username": "owner", "password": "pw-ana"}
+    ).status_code == 401
+
+
+def test_parse_accounts_reserved_names_and_password_collisions(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from app.auth import parse_accounts
+
+    # "owner" is reserved; "ana" reuses the demo password ("demo" default)
+    monkeypatch.setattr(settings, "accounts", "owner:sneak,ana:demo,leo:pw-leo")
+    parse_accounts.cache_clear()
+    try:
+        with caplog.at_level("WARNING"):
+            parsed = parse_accounts()
+    finally:
+        parse_accounts.cache_clear()
+
+    assert parsed == {"ana": "demo", "leo": "pw-leo"}
+    assert any("reserved" in r.message for r in caplog.records)
+    assert any("PASSWORD COLLISION" in r.message for r in caplog.records)
+
+
 def test_member_login_and_me(client: TestClient, accounts) -> None:
-    login = client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    login = client.post("/api/v1/auth/login", json={"username": "ana", "password": "pw-ana"})
     assert login.status_code == 200
     assert login.json() == {"ok": True, "role": "member", "account": "ana"}
     assert client.get("/api/v1/auth/me").json() == {
@@ -124,14 +160,14 @@ def test_member_login_and_me(client: TestClient, accounts) -> None:
 
 
 def test_member_can_write_unlike_guest(client: TestClient, accounts) -> None:
-    client.post("/api/v1/auth/login", json={"password": "pw-leo"})
+    client.post("/api/v1/auth/login", json={"username": "leo", "password": "pw-leo"})
     assert client.post("/api/v1/roles", json={"name": "Engineer"}).status_code == 201
 
 
 def test_member_session_dies_when_account_removed(client: TestClient, accounts) -> None:
     from app.auth import parse_accounts
 
-    client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    client.post("/api/v1/auth/login", json={"username": "ana", "password": "pw-ana"})
     assert client.get("/api/v1/auth/me").status_code == 200
 
     # account deleted from HAB7BOT_ACCOUNTS → existing cookie must go dead,
@@ -146,13 +182,15 @@ def test_google_routes_are_owner_only(
 ) -> None:
     monkeypatch.setattr("app.api.v1.google.is_authorized", lambda: False)
 
-    client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    client.post("/api/v1/auth/login", json={"username": "ana", "password": "pw-ana"})
     assert client.get("/api/v1/google/status").status_code == 403
 
-    client.post("/api/v1/auth/login", json={"password": "demo"})
+    client.post("/api/v1/auth/login", json={"username": "demo", "password": "demo"})
     assert client.get("/api/v1/google/status").status_code == 403
 
-    client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    client.post(
+        "/api/v1/auth/login", json={"username": "owner", "password": settings.app_password}
+    )
     assert client.get("/api/v1/google/status").status_code == 200
 
 

@@ -21,6 +21,10 @@ ROLE_MEMBER = "member"
 # so this is a safety requirement, not cosmetics.
 _ACCOUNT_NAME_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
 
+# Usernames claimed by the built-in logins (see api/v1/auth.py::login) —
+# account entries with these names are skipped.
+RESERVED_USERNAMES = {"owner", "demo"}
+
 # Methods a guest session may use — guests are read-only across the whole
 # API surface. Enforced centrally here (require_session is the dependency on
 # every router) rather than per-route, so new routes are guest-safe by default.
@@ -33,13 +37,14 @@ _serializer = URLSafeTimedSerializer(settings.session_secret, salt="compass-sess
 def parse_accounts() -> dict[str, str]:
     """HAB7BOT_ACCOUNTS ("name:password,name:password") → {name: password}.
 
-    Login has a single password box with no username, so passwords are the
-    identity — duplicates (including collisions with APP_PASSWORD or
-    DEMO_PASSWORD) are logged loudly since the earlier match silently wins.
+    Login takes username + password, so the username disambiguates — but
+    matching passwords across logins (including APP_PASSWORD and
+    DEMO_PASSWORD) are still warned about loudly: a shared password means one
+    person can trivially log into another's planner by guessing the username.
     Cached: settings are process-lifetime constants (tests clear the cache).
     """
     accounts: dict[str, str] = {}
-    seen_passwords = {settings.app_password, settings.demo_password}
+    seen_passwords = {settings.app_password: "owner", settings.demo_password: "demo"}
     for entry in settings.accounts.split(","):
         entry = entry.strip()
         if not entry:
@@ -49,13 +54,17 @@ def parse_accounts() -> dict[str, str]:
         if not sep or not password or not _ACCOUNT_NAME_RE.match(name):
             logger.warning("Skipping malformed account entry %r", entry.split(":")[0])
             continue
+        if name in RESERVED_USERNAMES:
+            logger.warning("Skipping account %r — reserved username", name)
+            continue
         if password in seen_passwords:
             logger.warning(
-                "Account %r reuses another login's password — it will be "
-                "unreachable (first match wins). Give every account a unique "
-                "password.", name,
+                "PASSWORD COLLISION: account %r has the same password as %r — "
+                "either login can access the other's planner by switching "
+                "usernames. Give every login a unique password.",
+                name, seen_passwords[password],
             )
-        seen_passwords.add(password)
+        seen_passwords.setdefault(password, name)
         accounts[name] = password
     return accounts
 

@@ -20,6 +20,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
+    username: str
     password: str
 
 
@@ -40,24 +41,26 @@ def _set_session_cookie(response: Response, role: str, account: str | None = Non
 
 @router.post("/login")
 def login(data: LoginRequest, response: Response) -> dict[str, bool | str]:
-    """One form, one password box — the password IS the identity:
-    APP_PASSWORD → owner (real planner); the openly hinted demo password →
-    read-only guest served from the seeded showcase DB; an HAB7BOT_ACCOUNTS
-    password → that member's own private database. Owner is matched first so
-    nothing can shadow it; parse_accounts warns about duplicate passwords."""
+    """Username + password. Reserved usernames: "owner" (APP_PASSWORD, the
+    real planner) and "demo" (DEMO_PASSWORD, the openly hinted read-only
+    showcase — see scripts/seed_demo.py). Any other username is looked up in
+    HAB7BOT_ACCOUNTS and gets that member's own private database.
+    parse_accounts warns loudly about password collisions across logins."""
+    username = data.username.strip().lower()
     role: str | None = None
     account: str | None = None
-    if _matches(data.password, settings.app_password):
-        role = ROLE_OWNER
-    elif _matches(data.password, settings.demo_password):
-        role = ROLE_GUEST
+    if username == "owner":
+        if _matches(data.password, settings.app_password):
+            role = ROLE_OWNER
+    elif username == "demo":
+        if _matches(data.password, settings.demo_password):
+            role = ROLE_GUEST
     else:
-        for name, password in parse_accounts().items():
-            if _matches(data.password, password):
-                role, account = ROLE_MEMBER, name
-                break
+        expected = parse_accounts().get(username)
+        if expected is not None and _matches(data.password, expected):
+            role, account = ROLE_MEMBER, username
     if role is None:
-        raise HTTPException(status_code=401, detail="Incorrect password")
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
     _set_session_cookie(response, role, account)
     result: dict[str, bool | str] = {"ok": True, "role": role}
     if account is not None:
