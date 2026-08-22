@@ -179,7 +179,7 @@ export default function ThisWeekPage() {
           <h2 className="text-sm font-semibold text-muted-foreground">Big Rocks</h2>
           <div className="flex flex-wrap gap-4">
             {[...bigRocksByRole.entries()].map(([roleId, tasks]) => (
-              <div key={roleId} className="w-56 space-y-2 rounded-md border p-2">
+              <div key={roleId} className="w-full space-y-2 rounded-md border p-2 sm:w-56">
                 <p className="text-xs font-medium">{roleName(roleId)}</p>
                 {tasks.map((task) => (
                   <TaskCard

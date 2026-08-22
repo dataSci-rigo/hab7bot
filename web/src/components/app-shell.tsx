@@ -57,15 +57,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           AI weekly review. Everything is browsable, nothing is editable.
         </div>
       )}
-      <div className="flex flex-1">
-        <nav className="w-48 shrink-0 border-r p-3">
-          <ul className="space-y-1">
+      {/* Phone: horizontal scrolling tab bar under the header.
+          md+: the classic fixed sidebar. Pure CSS, no JS breakpoint logic. */}
+      <div className="flex flex-1 flex-col md:flex-row">
+        <nav className="shrink-0 border-b md:w-48 md:border-b-0 md:border-r md:p-3">
+          <ul className="flex gap-1 overflow-x-auto px-2 py-1.5 md:flex-col md:gap-0 md:space-y-1 md:overflow-visible md:p-0">
             {NAV_ITEMS.map((item) => (
-              <li key={item.href}>
+              <li key={item.href} className="shrink-0 md:shrink">
                 <Link
                   href={item.href}
                   className={cn(
-                    "block rounded-md px-3 py-2 text-sm hover:bg-accent",
+                    "block rounded-md px-3 py-2 text-sm whitespace-nowrap hover:bg-accent",
                     pathname === item.href && "bg-accent font-medium",
                   )}
                 >
@@ -75,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </ul>
         </nav>
-        <main className="flex-1 overflow-x-auto p-4">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-auto p-3 md:p-4">{children}</main>
       </div>
     </div>
   );

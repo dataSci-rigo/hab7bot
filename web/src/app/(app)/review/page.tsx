@@ -282,7 +282,7 @@ export default function WeeklyReviewPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className={`flex items-center gap-2 ${isDemo ? "demo-rise" : ""}`}>
+      <div className={`flex flex-wrap items-center gap-2 ${isDemo ? "demo-rise" : ""}`}>
         <Button variant="outline" size="sm" onClick={() => setIsoWeek((w) => shiftIsoWeek(w, -1))}>
           ← Prev
         </Button>

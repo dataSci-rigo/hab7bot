@@ -56,12 +56,12 @@ export function QuickAddBox({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
       <Input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={placeholder}
-        className="flex-1"
+        className="w-full flex-1 basis-full sm:basis-auto"
       />
       <Select value={roleId} onValueChange={setRoleId}>
         <SelectTrigger className="w-40">
