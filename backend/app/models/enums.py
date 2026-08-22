@@ -22,6 +22,7 @@ class TaskOrigin(enum.StrEnum):
     telegram = "telegram"
     web = "web"
     google = "google"  # pulled in via Google Tasks/Calendar sync — see SPEC §5
+    braindump = "braindump"  # routed in from the brain-dump bot's capture API
 
 
 class ProjectStatus(enum.StrEnum):

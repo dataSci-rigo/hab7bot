@@ -1,3 +1,4 @@
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -15,7 +16,11 @@ from app.db import Base  # noqa: E402
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# ALEMBIC_DATABASE_URL overrides the app DB — used by scripts/seed_demo.py
+# to migrate the guest showcase DB instead of the real one.
+config.set_main_option(
+    "sqlalchemy.url", os.environ.get("ALEMBIC_DATABASE_URL", settings.database_url)
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

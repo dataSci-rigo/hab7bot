@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useGenerateWeeklyReview,
+  useMe,
   useSaveReflection,
   useWeeklyReview,
 } from "@/lib/hooks";
@@ -181,13 +182,19 @@ function AnalysisSection({ analysis }: { analysis: WeekAnalysisView }) {
 function ReviewBody({
   isoWeek,
   review,
+  isDemo,
 }: {
   isoWeek: string;
   review: WeeklyReviewRead | undefined;
+  isDemo: boolean;
 }) {
   const generateReview = useGenerateWeeklyReview();
   const saveReflection = useSaveReflection();
   const [reflection, setReflection] = useState(review?.reflection ?? "");
+
+  const riseClass = isDemo ? "demo-rise" : "";
+  const riseDelay = (step: number) =>
+    isDemo ? { animationDelay: `${step * 150}ms` } : undefined;
 
   async function handleGenerate(force: boolean) {
     await generateReview.mutateAsync({ isoWeek, force });
@@ -203,45 +210,65 @@ function ReviewBody({
     <>
       {review ? (
         <>
-          {review.stats && <StatsSection stats={review.stats as unknown as WeekStats} />}
+          {review.stats && (
+            <div className={riseClass} style={riseDelay(1)}>
+              <StatsSection stats={review.stats as unknown as WeekStats} />
+            </div>
+          )}
           {review.ai_analysis ? (
-            <AnalysisSection analysis={review.ai_analysis as unknown as WeekAnalysisView} />
+            <div className={riseClass} style={riseDelay(2)}>
+              <AnalysisSection analysis={review.ai_analysis as unknown as WeekAnalysisView} />
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">No AI analysis on this review yet.</p>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={generateReview.isPending}
-            onClick={() => handleGenerate(true)}
-          >
-            {generateReview.isPending ? "Regenerating…" : "Regenerate analysis"}
-          </Button>
+          {!isDemo && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={generateReview.isPending}
+              onClick={() => handleGenerate(true)}
+            >
+              {generateReview.isPending ? "Regenerating…" : "Regenerate analysis"}
+            </Button>
+          )}
         </>
       ) : (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">No review generated for this week yet.</p>
-          <Button
-            size="sm"
-            disabled={generateReview.isPending}
-            onClick={() => handleGenerate(false)}
-          >
-            {generateReview.isPending ? "Generating…" : "Generate review"}
-          </Button>
+          {!isDemo && (
+            <Button
+              size="sm"
+              disabled={generateReview.isPending}
+              onClick={() => handleGenerate(false)}
+            >
+              {generateReview.isPending ? "Generating…" : "Generate review"}
+            </Button>
+          )}
         </div>
       )}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">Your reflection</h2>
-        <Textarea
-          value={reflection}
-          onChange={(e) => setReflection(e.target.value)}
-          rows={4}
-          placeholder="How did this week actually go?"
-        />
-        <Button size="sm" disabled={saveReflection.isPending} onClick={handleSaveReflection}>
-          {saveReflection.isPending ? "Saving…" : "Save reflection"}
-        </Button>
+      <section className={`space-y-2 ${riseClass}`} style={riseDelay(3)}>
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {isDemo ? "Reflection" : "Your reflection"}
+        </h2>
+        {isDemo ? (
+          <blockquote className="border-l-2 pl-3 text-sm italic text-muted-foreground">
+            {review?.reflection ?? "—"}
+          </blockquote>
+        ) : (
+          <>
+            <Textarea
+              value={reflection}
+              onChange={(e) => setReflection(e.target.value)}
+              rows={4}
+              placeholder="How did this week actually go?"
+            />
+            <Button size="sm" disabled={saveReflection.isPending} onClick={handleSaveReflection}>
+              {saveReflection.isPending ? "Saving…" : "Save reflection"}
+            </Button>
+          </>
+        )}
       </section>
     </>
   );
@@ -250,10 +277,12 @@ function ReviewBody({
 export default function WeeklyReviewPage() {
   const [isoWeek, setIsoWeek] = useState(currentIsoWeek());
   const { data: review, isLoading } = useWeeklyReview(isoWeek);
+  const { data: me } = useMe();
+  const isDemo = me?.role === "guest";
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center gap-2">
+      <div className={`flex items-center gap-2 ${isDemo ? "demo-rise" : ""}`}>
         <Button variant="outline" size="sm" onClick={() => setIsoWeek((w) => shiftIsoWeek(w, -1))}>
           ← Prev
         </Button>
@@ -266,7 +295,7 @@ export default function WeeklyReviewPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <ReviewBody key={review?.id ?? isoWeek} isoWeek={isoWeek} review={review} />
+        <ReviewBody key={review?.id ?? isoWeek} isoWeek={isoWeek} review={review} isDemo={isDemo} />
       )}
     </div>
   );

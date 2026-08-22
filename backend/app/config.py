@@ -11,10 +11,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
     app_password: str = "changeme"
+    # Typing this into the login form starts a read-only demo session served
+    # from the seeded showcase DB. Deliberately not a secret — the login page
+    # prints it as a hint.
+    demo_password: str = "demo"
     session_secret: str = "changeme"
     web_origin: str = "http://localhost:3000"
 
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'compass.db'}"
+    # Read-only guest sessions are served from this separate showcase DB
+    # (seeded by scripts/seed_demo.py) so guests never see the real planner.
+    demo_database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'compass_demo.db'}"
 
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
@@ -29,6 +36,10 @@ class Settings(BaseSettings):
     telegram_allowed_user_id: int = Field(
         default=0, validation_alias="HAB7BOT_ALLOWED_USER_ID"
     )
+
+    # Shared secret for bot-to-bot capture calls (brain-dump). Empty = the
+    # X-Api-Key path is disabled and only session-cookie auth works.
+    internal_api_key: str = Field(default="", validation_alias="HAB7BOT_INTERNAL_API_KEY")
 
     week_start_day: str = "monday"
 

@@ -17,6 +17,7 @@ import { TaskCard } from "@/components/task-card";
 import { QuickAddBox } from "@/components/quick-add-box";
 import {
   useCompleteTask,
+  useMe,
   useRoles,
   useUncompleteTask,
   useUpdateTask,
@@ -91,9 +92,17 @@ export default function ThisWeekPage() {
   const [isoWeek, setIsoWeek] = useState(currentIsoWeek());
   const { data: plan, isLoading } = useWeekPlan(isoWeek);
   const { data: roles } = useRoles(true);
+  const { data: me } = useMe();
   const updateTask = useUpdateTask();
   const completeTask = useCompleteTask();
   const uncompleteTask = useUncompleteTask();
+
+  // Demo sessions get a staggered entrance so the seeded sample week
+  // showcases itself; no-op for the owner.
+  const isDemo = me?.role === "guest";
+  const riseClass = isDemo ? "demo-rise" : "";
+  const riseDelay = (step: number) =>
+    isDemo ? { animationDelay: `${step * 130}ms` } : undefined;
 
   const days = useMemo(() => isoWeekDays(isoWeek), [isoWeek]);
 
@@ -146,7 +155,7 @@ export default function ThisWeekPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between ${riseClass}`} style={riseDelay(0)}>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setIsoWeek((w) => shiftIsoWeek(w, -1))}>
             ← Prev
@@ -158,13 +167,15 @@ export default function ThisWeekPage() {
         </div>
       </div>
 
-      <QuickAddBox
-        defaultFields={{ scheduled_week: isoWeek, status: TaskStatus.PLANNED }}
-        placeholder="Add a task to this week…"
-      />
+      <div className={riseClass} style={riseDelay(1)}>
+        <QuickAddBox
+          defaultFields={{ scheduled_week: isoWeek, status: TaskStatus.PLANNED }}
+          placeholder="Add a task to this week…"
+        />
+      </div>
 
       {bigRocksByRole.size > 0 && (
-        <section className="space-y-2">
+        <section className={`space-y-2 ${riseClass}`} style={riseDelay(2)}>
           <h2 className="text-sm font-semibold text-muted-foreground">Big Rocks</h2>
           <div className="flex flex-wrap gap-4">
             {[...bigRocksByRole.entries()].map(([roleId, tasks]) => (
@@ -188,7 +199,7 @@ export default function ThisWeekPage() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className={`flex gap-3 overflow-x-auto pb-2 ${riseClass}`} style={riseDelay(3)}>
             <Column
               id={BACKLOG_ID}
               title="Backlog"

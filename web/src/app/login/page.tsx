@@ -27,6 +27,7 @@ export default function LoginPage() {
     }
   }
 
+
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
@@ -48,6 +49,10 @@ export default function LoginPage() {
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </Button>
+        <p className="demo-glow mx-auto w-fit rounded-md px-3 py-1 text-center text-xs text-muted-foreground">
+          Just looking? Try the read-only demo — hint:{" "}
+          <code className="rounded bg-muted px-1 font-mono">demo</code>
+        </p>
       </form>
     </main>
   );

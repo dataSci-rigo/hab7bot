@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AuthService,
   CaptureService,
   GoalsService,
   GoogleService,
@@ -22,6 +23,17 @@ import {
   type TaskCreate,
   type TaskUpdate,
 } from "@/lib/api-client";
+
+// ── auth ─────────────────────────────────────────────────────────────────
+
+export function useMe() {
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: () => AuthService.meApiV1AuthMeGet(),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 // ── roles ────────────────────────────────────────────────────────────────
 

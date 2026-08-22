@@ -338,3 +338,37 @@ Append-only log of technical decisions not dictated by SPEC.md. One line per dec
      created_at/completed_at timestamps — the test silently depended on
      "today" falling inside that week's date range and broke once real time
      moved past it. Fixed to use the actual current ISO week.
+- 2026-08-21: Added `require_session_or_api_key` on POST /api/v1/capture only
+  (X-Api-Key header, hmac.compare_digest against HAB7BOT_INTERNAL_API_KEY;
+  empty key = path disabled) so the brain-dump bot can route tasks in without
+  a browser session. New TaskOrigin `braindump` (native_enum=False VARCHAR —
+  no migration needed); CaptureRequest gained a whitelisted `origin` field
+  (web|braindump, default web). All other v1 routes stay cookie-only.
+
+- 2026-08-21: Guest account + showcase demo. `GUEST_PASSWORD` (empty = disabled) logs
+  into the same form and mints a session token carrying `role: "guest"`; tokens
+  without a role key are treated as owner so pre-existing 30-day cookies keep
+  working. Read-only is enforced centrally in `require_session` (guests get 403 on
+  non-GET/HEAD/OPTIONS) rather than per-route, so new routes are guest-safe by
+  default. Guests are served from a *separate* seeded database
+  (`compass_demo.db`, built by `scripts/seed_demo.py`, routed in `get_db` by
+  session role) rather than read-only access to the real one — the owner's
+  personal tasks/mission/reflections are private, and the demo should showcase the
+  product with curated content regardless of what the owner's planner currently
+  looks like. Seed dates are computed relative to the current ISO week so the
+  demo always shows a lively current week plus two weeks of reviewed history;
+  rerun the seed periodically (or on deploy) to keep it current. The bot worker
+  and scheduler bind `SessionLocal` directly and can never touch the demo DB.
+  `alembic/env.py` gained an `ALEMBIC_DATABASE_URL` env override so the seed
+  script can migrate the demo DB with the same migration history.
+  Amendment (same day): after two design iterations with the user, guest entry is
+  neither a GUEST_PASSWORD secret nor a passwordless button — the login page
+  openly prints "hint: demo" and typing DEMO_PASSWORD (default "demo",
+  configurable, empty disables) into the normal form starts the guest session.
+  Owner password is matched first so the demo password can never shadow it.
+  Demo mode also drives showcase animations (CSS keyframes in globals.css,
+  `.demo-rise` staggered entrances + `.demo-glow` hint pulse, reduced-motion
+  respected) on the This Week board and Weekly Review page, hides write
+  affordances there (Generate/Regenerate/reflection editor), and shows a
+  read-only banner. The bot worker and scheduler still bind SessionLocal and
+  can never touch the demo DB.

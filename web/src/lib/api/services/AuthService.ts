@@ -9,13 +9,18 @@ import { request as __request } from '../core/request';
 export class AuthService {
     /**
      * Login
+     * One form, two passwords: the owner's APP_PASSWORD, or the openly
+     * hinted demo password ("demo" by default) which starts a read-only
+     * session served from the seeded showcase database (scripts/seed_demo.py)
+     * — never the real planner. Owner match is checked first so the demo
+     * password can never shadow it.
      * @param requestBody
-     * @returns boolean Successful Response
+     * @returns any Successful Response
      * @throws ApiError
      */
     public static loginApiV1AuthLoginPost(
         requestBody: LoginRequest,
-    ): CancelablePromise<Record<string, boolean>> {
+    ): CancelablePromise<Record<string, (boolean | string)>> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/auth/login',
@@ -39,10 +44,10 @@ export class AuthService {
     }
     /**
      * Me
-     * @returns boolean Successful Response
+     * @returns any Successful Response
      * @throws ApiError
      */
-    public static meApiV1AuthMeGet(): CancelablePromise<Record<string, boolean>> {
+    public static meApiV1AuthMeGet(): CancelablePromise<Record<string, (boolean | string)>> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/auth/me',

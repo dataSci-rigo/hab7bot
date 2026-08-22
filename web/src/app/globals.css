@@ -128,3 +128,42 @@
     @apply font-sans;
   }
 }
+/* Demo-mode showcase animations — applied when browsing as a read-only
+   guest so the seeded sample week feels alive. Sections rise in with a
+   stagger set via inline animation-delay; `backwards` keeps them hidden
+   until their delay elapses. */
+@keyframes demo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.demo-rise {
+  animation: demo-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes demo-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 18%, transparent);
+  }
+}
+
+.demo-glow {
+  animation: demo-glow 2.4s ease-in-out 0.8s 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-rise,
+  .demo-glow {
+    animation: none;
+  }
+}

@@ -13,7 +13,7 @@ export type { BreakdownAcceptRequest } from './models/BreakdownAcceptRequest';
 export type { BreakdownMilestone } from './models/BreakdownMilestone';
 export type { BreakdownProposal } from './models/BreakdownProposal';
 export type { BreakdownTask } from './models/BreakdownTask';
-export type { CaptureRequest } from './models/CaptureRequest';
+export { CaptureRequest } from './models/CaptureRequest';
 export type { GoalCreate } from './models/GoalCreate';
 export type { GoalRead } from './models/GoalRead';
 export type { GoalUpdate } from './models/GoalUpdate';

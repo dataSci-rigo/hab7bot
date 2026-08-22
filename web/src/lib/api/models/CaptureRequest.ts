@@ -4,5 +4,12 @@
 /* eslint-disable */
 export type CaptureRequest = {
     text: string;
+    origin?: CaptureRequest.origin;
 };
+export namespace CaptureRequest {
+    export enum origin {
+        WEB = 'web',
+        BRAINDUMP = 'braindump',
+    }
+}
 
