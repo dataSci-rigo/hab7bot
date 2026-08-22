@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: me } = useMe();
   const isGuest = me?.role === "guest";
+  const memberName = me?.role === "member" ? String(me.account ?? "") : null;
 
   async function handleLogout() {
     await AuthService.logoutApiV1AuthLogoutPost();
@@ -35,6 +36,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {isGuest && (
             <span className="demo-rise rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
               Demo · read-only
+            </span>
+          )}
+          {memberName && (
+            <span className="rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
+              {memberName}
             </span>
           )}
         </span>

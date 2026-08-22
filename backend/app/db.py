@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 from fastapi import Request
 from sqlalchemy import create_engine, event
@@ -20,23 +21,35 @@ def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-# Guest sessions read a separate, seeded showcase database (see
-# scripts/seed_demo.py) — never the owner's real planner. Created lazily so
-# the bot worker and tests, which only use SessionLocal, never touch it.
-_demo_engine: Engine | None = None
-_DemoSessionLocal: sessionmaker | None = None
+# Non-owner sessions are served from separate SQLite files, created lazily
+# so the bot worker and tests, which only use SessionLocal, never touch
+# them: guests get the seeded showcase DB (scripts/seed_demo.py), members
+# each get their own private compass_acct_<name>.db. Names reaching
+# account_database_url are already validated by app/auth.py::parse_accounts
+# (^[a-z0-9_-]{1,32}$) — never raw user input.
+_extra_sessionmakers: dict[str, sessionmaker] = {}
+
+
+def account_database_url(account: str) -> str:
+    data_dir = Path(settings.database_url.removeprefix("sqlite:///")).parent
+    return f"sqlite:///{data_dir / f'compass_acct_{account}.db'}"
+
+
+def _extra_session(url: str) -> Session:
+    maker = _extra_sessionmakers.get(url)
+    if maker is None:
+        extra_engine = create_engine(url, connect_args={"check_same_thread": False})
+        maker = sessionmaker(bind=extra_engine, autoflush=False, autocommit=False)
+        _extra_sessionmakers[url] = maker
+    return maker()
 
 
 def _demo_session() -> Session:
-    global _demo_engine, _DemoSessionLocal
-    if _DemoSessionLocal is None:
-        _demo_engine = create_engine(
-            settings.demo_database_url, connect_args={"check_same_thread": False}
-        )
-        _DemoSessionLocal = sessionmaker(
-            bind=_demo_engine, autoflush=False, autocommit=False
-        )
-    return _DemoSessionLocal()
+    return _extra_session(settings.demo_database_url)
+
+
+def _account_session(account: str) -> Session:
+    return _extra_session(account_database_url(account))
 
 
 class Base(DeclarativeBase):
@@ -47,10 +60,16 @@ def get_db(request: Request = None) -> Generator[Session, None, None]:
     # Imported here, not at module top: app.auth imports app.config only,
     # but keeping db.py free of an auth import at import time avoids any
     # circular-import risk for non-request users of this module (bot, tests).
-    from app.auth import ROLE_GUEST, request_session_role
+    from app.auth import ROLE_GUEST, ROLE_MEMBER, request_session_identity
 
-    is_guest = request is not None and request_session_role(request) == ROLE_GUEST
-    db = _demo_session() if is_guest else SessionLocal()
+    identity = request_session_identity(request) if request is not None else None
+    if identity is not None and identity[0] == ROLE_GUEST:
+        db = _demo_session()
+    elif identity is not None and identity[0] == ROLE_MEMBER:
+        db = _account_session(identity[1])
+    else:
+        # owner, API-key callers (no cookie), and non-request users
+        db = SessionLocal()
     try:
         yield db
     finally:

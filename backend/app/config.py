@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # prints it as a hint.
     demo_password: str = "demo"
     session_secret: str = "changeme"
+    # Additional web-only accounts, "name:password,name:password". Each gets
+    # its own private compass_acct_<name>.db (see app/db.py); names must
+    # match ^[a-z0-9_-]{1,32}$ and passwords must be unique across all
+    # logins — the login form has no username field, so the password IS the
+    # identity. Parsed/validated by app/auth.py::parse_accounts.
+    accounts: str = Field(default="", validation_alias="HAB7BOT_ACCOUNTS")
     web_origin: str = "http://localhost:3000"
 
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'compass.db'}"

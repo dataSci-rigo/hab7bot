@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
   useGoogleStatus,
+  useMe,
   useSettings,
   useTriggerGoogleSync,
   useUpdateSettings,
@@ -144,7 +145,12 @@ function ScheduledJobTimesSection() {
 
 export default function SettingsPage() {
   const { data: settings } = useSettings();
+  const { data: me } = useMe();
   const updateSettings = useUpdateSettings();
+  // Google sync is owner-only (the OAuth token is the owner's; the API
+  // returns 403 for anyone else) — hide the section rather than render
+  // controls that can only fail.
+  const isOwner = me?.role === "owner";
 
   return (
     <div className="max-w-md space-y-6">
@@ -169,9 +175,12 @@ export default function SettingsPage() {
         </Select>
       </section>
 
-      <Separator />
-
-      <GoogleSyncSection />
+      {isOwner && (
+        <>
+          <Separator />
+          <GoogleSyncSection />
+        </>
+      )}
 
       <Separator />
 

@@ -9,11 +9,11 @@ import { request as __request } from '../core/request';
 export class AuthService {
     /**
      * Login
-     * One form, two passwords: the owner's APP_PASSWORD, or the openly
-     * hinted demo password ("demo" by default) which starts a read-only
-     * session served from the seeded showcase database (scripts/seed_demo.py)
-     * — never the real planner. Owner match is checked first so the demo
-     * password can never shadow it.
+     * One form, one password box — the password IS the identity:
+     * APP_PASSWORD → owner (real planner); the openly hinted demo password →
+     * read-only guest served from the seeded showcase DB; an HAB7BOT_ACCOUNTS
+     * password → that member's own private database. Owner is matched first so
+     * nothing can shadow it; parse_accounts warns about duplicate passwords.
      * @param requestBody
      * @returns any Successful Response
      * @throws ApiError

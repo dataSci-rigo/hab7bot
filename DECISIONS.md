@@ -372,3 +372,23 @@ Append-only log of technical decisions not dictated by SPEC.md. One line per dec
   affordances there (Generate/Regenerate/reflection editor), and shows a
   read-only banner. The bot worker and scheduler still bind SessionLocal and
   can never touch the demo DB.
+
+- 2026-08-21: Multi-account support (web-only, DB-per-account). HAB7BOT_ACCOUNTS
+  ("name:password,...") declares member accounts; each is served from its own
+  private compass_acct_<name>.db, routed in get_db by the session token's
+  role/account — generalizing the demo-DB mechanism rather than adding user_id
+  columns to a shared schema (SPEC §8's multi-user non-goal stands for the
+  multi-tenant version; per-DB isolation needs zero schema/service changes and
+  gives stronger separation). The login form stays a single password box, so
+  passwords ARE the identity: they must be unique across all logins
+  (parse_accounts warns on collisions; owner is matched first and can't be
+  shadowed). Account names are validated (^[a-z0-9_-]{1,32}$) because they
+  become DB filenames. A member session whose account was removed from the
+  env goes dead (401) rather than falling through to another database.
+  scripts/migrate_accounts.py creates/upgrades all account DBs; run it after
+  deploys. Security fix found during planning: /google/* was session-gated
+  only — a member's "Sync now" would have run the two-way sync against their
+  DB with the OWNER's OAuth token, cross-pollinating planners; the router now
+  requires the owner role and the web Settings page hides the Google section
+  for non-owners. Telegram bot, proactive loops, and Google sync remain
+  owner-only by design; account DBs are not yet in env_sync.py's backup map.

@@ -87,6 +87,109 @@ def test_pre_role_session_token_still_works_as_owner(client: TestClient) -> None
     assert client.post("/api/v1/roles", json={"name": "Engineer"}).status_code == 201
 
 
+# ── member accounts ─────────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def accounts(monkeypatch: pytest.MonkeyPatch):
+    from app.auth import parse_accounts
+
+    monkeypatch.setattr(settings, "accounts", "ana:pw-ana,leo:pw-leo")
+    parse_accounts.cache_clear()
+    yield
+    parse_accounts.cache_clear()
+
+
+def test_parse_accounts_skips_malformed_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.auth import parse_accounts
+
+    monkeypatch.setattr(
+        settings, "accounts",
+        "ok_name:pw1, Bad Name:pw2 ,nopassword, UPPER:pw3," + "x" * 40 + ":pw4,also-ok:pw5",
+    )
+    parse_accounts.cache_clear()
+    try:
+        assert parse_accounts() == {"ok_name": "pw1", "also-ok": "pw5"}
+    finally:
+        parse_accounts.cache_clear()
+
+
+def test_member_login_and_me(client: TestClient, accounts) -> None:
+    login = client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    assert login.status_code == 200
+    assert login.json() == {"ok": True, "role": "member", "account": "ana"}
+    assert client.get("/api/v1/auth/me").json() == {
+        "authenticated": True, "role": "member", "account": "ana",
+    }
+
+
+def test_member_can_write_unlike_guest(client: TestClient, accounts) -> None:
+    client.post("/api/v1/auth/login", json={"password": "pw-leo"})
+    assert client.post("/api/v1/roles", json={"name": "Engineer"}).status_code == 201
+
+
+def test_member_session_dies_when_account_removed(client: TestClient, accounts) -> None:
+    from app.auth import parse_accounts
+
+    client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    assert client.get("/api/v1/auth/me").status_code == 200
+
+    # account deleted from HAB7BOT_ACCOUNTS → existing cookie must go dead,
+    # not silently fall through to some other database
+    settings.accounts = "leo:pw-leo"
+    parse_accounts.cache_clear()
+    assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_google_routes_are_owner_only(
+    client: TestClient, accounts, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.api.v1.google.is_authorized", lambda: False)
+
+    client.post("/api/v1/auth/login", json={"password": "pw-ana"})
+    assert client.get("/api/v1/google/status").status_code == 403
+
+    client.post("/api/v1/auth/login", json={"password": "demo"})
+    assert client.get("/api/v1/google/status").status_code == 403
+
+    client.post("/api/v1/auth/login", json={"password": settings.app_password})
+    assert client.get("/api/v1/google/status").status_code == 200
+
+
+def test_get_db_routes_members_to_their_own_db(
+    accounts, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi import Request
+
+    from app import db as db_module
+    from app.auth import ROLE_MEMBER, SESSION_COOKIE_NAME, make_session_token
+
+    opened: list[str] = []
+
+    def fake_account_session(name: str):
+        opened.append(name)
+        return MagicMock(name=f"session-{name}")
+
+    monkeypatch.setattr(db_module, "_account_session", fake_account_session)
+
+    def request_for(account: str) -> Request:
+        token = make_session_token(ROLE_MEMBER, account)
+        return Request(
+            {"type": "http", "method": "GET", "path": "/", "query_string": b"",
+             "headers": [(b"cookie", f"{SESSION_COOKIE_NAME}={token}".encode())]}
+        )
+
+    for name in ("ana", "leo"):
+        gen = db_module.get_db(request_for(name))
+        next(gen)
+        gen.close()
+    assert opened == ["ana", "leo"]
+
+    # distinct DB files per account
+    assert db_module.account_database_url("ana") != db_module.account_database_url("leo")
+    assert "compass_acct_ana.db" in db_module.account_database_url("ana")
+
+
 def test_get_db_routes_guest_to_demo_session(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi import Request
 

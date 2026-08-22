@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.auth import require_session
+from app.auth import require_owner
 from app.db import get_db
 from app.integrations.google.auth import is_authorized
 from app.integrations.google.sync import sync_all
 from app.schemas.google import GoogleStatus, GoogleSyncResult
 from app.services import google_links
 
-router = APIRouter(prefix="/google", tags=["google"], dependencies=[Depends(require_session)])
+# Owner-only: the Google OAuth token belongs to the owner, so a member or
+# guest triggering a sync would cross-pollinate their database with the
+# owner's Google Tasks/Calendar.
+router = APIRouter(prefix="/google", tags=["google"], dependencies=[Depends(require_owner)])
 
 
 @router.get("/status", response_model=GoogleStatus)
